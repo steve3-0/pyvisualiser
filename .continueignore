@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+build/
+dist/
+*.wav
+*.mp3
+*.flac
+*.png
+*.jpg

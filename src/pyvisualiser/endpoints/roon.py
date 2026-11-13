@@ -2,6 +2,7 @@
 from roonapi import RoonApi, RoonDiscovery
 # import pygame # Keeping imports minimal as requested in original file structure context
 import time
+import psutil
 from typing import Tuple, Dict, Any, List, Optional
 
 # Assuming Events is defined elsewhere and available for type hinting purposes
@@ -321,34 +322,117 @@ class RoonEndpoint(MetaData):
         }
         
         self._target_zone_name = target_name
+        self.roon = None
+        self.connect()
 
+    def _find_best_server(self, discover: RoonDiscovery) -> Optional[Tuple[str, str]]:
+        """Filters discovered servers for LAN addresses to avoid VPN interfaces."""
+        servers = discover.all()
+        
+        # 1. Detect if VPN is active by checking utun interfaces for an IPv4 address
+        is_vpn_active = any(
+            name.startswith('utun') and addr.family == 2 
+            for name, addrs in psutil.net_if_addrs().items() 
+            for addr in addrs
+        )
+        
+        # 2. If VPN is active, strictly filter for your known LAN subnet (192.168.1.x)
+        if is_vpn_active:
+            print("VPN detected via utun interface: Restricting discovery to local LAN (192.168.1.x).")
+            servers = [s for s in servers if s[0].startswith("192.168.1.")]
+
+        # 3. Sort: LAN-compatible first anyway
+        servers.sort(key=lambda s: not s[0].startswith("192.168.1."))
+        
+        return servers[0] if servers else None
+
+    # def connect(self):
+    #     """Explicit connection method to handle network setup and retries."""
+    #     try:
+    #         core_id, token = self._connect_to_roon()
+
+    #         # Use Discovery to find the server IP/Port for the core_id
+    #         print(f"Connecting to Roon Core {core_id}...")
+    #         # discover = RoonDiscovery(core_id)
+    #         # server = self._find_best_server(discover)
+    #         # discover.stop()
+    #         # Debug: See what discovery returns
+    #         discover = RoonDiscovery(core_id)
+    #         all_servers = discover.all()
+    #         print(f"DEBUG: Discovered servers: {all_servers}")
+            
+    #         server = self._find_best_server(discover)
+    #         discover.stop()
+            
+    #         print(f"DEBUG: Selected server: {server}")
+
+    #         if server:
+    #             # Retry loop to handle Errno 49 / intermittent binding issues
+    #             self.roon = self._connect_with_retry(server, token)
+    #             self._initialize_state()
+    #             self.set_target_zone(self._target_zone_name)
+    #             self.roon.register_state_callback(self.roon_callback)
+    #             print(f"Roon Initialization: Successfully connected to '{self._target_zone_name}'.")
+    #         else:
+    #             print("Roon Initialization Warning: Cached Core not found on network.")
+    #             self.roon = None
+    #             self._initialize_state()
+    #             self._target_zone = ''
+    #     except Exception as e:
+    #         print(f"\n Roon failed to initialise: {e}")
+
+    def connect(self):
+        """Explicit connection method to handle network setup and retries."""
         try:
             core_id, token = self._connect_to_roon()
 
-            # Use Discovery to find the server IP/Port for the core_id
-            print(f"Connecting to Roon Core {core_id}...")
-            discover = RoonDiscovery(core_id)
-            server = discover.first()
-            discover.stop()
+            # 1. Check for VPN
+            is_vpn_active = any(
+                name.startswith('utun') and addr.family == 2 
+                for name, addrs in psutil.net_if_addrs().items() 
+                for addr in addrs
+            )
+
+            # 2. If VPN is active, skip discovery entirely to avoid Errno 49
+            if is_vpn_active:
+                print("VPN detected: Skipping discovery. Connecting directly to Roon Core at 192.168.1.131:9330")
+                server = ("192.168.1.131", 9330)
+            else:
+                # Normal discovery path
+                print(f"Connecting to Roon Core {core_id}...")
+                discover = RoonDiscovery(core_id)
+                # Debug: See what discovery returns
+                all_servers = discover.all()
+                print(f"DEBUG: Discovered servers: {all_servers}")
+                server = self._find_best_server(discover)
+                discover.stop()
+                print(f"DEBUG: Selected server: {server}")
 
             if server:
-                # Initialize the main API connection
-                self.roon = RoonApi(self.appinfo, token, server[0], server[1], True)
+                # Retry loop to handle Errno 49 / intermittent binding issues
+                self.roon = self._connect_with_retry(server, token)
                 self._initialize_state()
-                self.set_target_zone(target_name)
+                self.set_target_zone(self._target_zone_name)
                 self.roon.register_state_callback(self.roon_callback)
-                print(f"Roon Initialization: Successfully connected to '{target_name}'.")
+                print(f"Roon Initialization: Successfully connected to '{self._target_zone_name}'.")
             else:
-                # If cached server not found, we may need to re-auth
                 print("Roon Initialization Warning: Cached Core not found on network.")
                 self.roon = None
                 self._initialize_state()
                 self._target_zone = ''
+        except Exception as e:
+            print(f"\n Roon failed to initialise: {e}")
 
-        except (ConnectionError, AttributeError) as e:
-            print(f"\n Roon failed to initialise due to connection error: {e}") 
-            # If setup fails, self.roon remains None or an invalid object, which is safer than crashing.
-
+    def _connect_with_retry(self, server, token, retries=3):
+        """Attempts to connect to Roon with backoff."""
+        for i in range(retries):
+            try:
+                return RoonApi(self.appinfo, token, server[0], server[1], True)
+            except OSError as e:
+                if i == retries - 1: raise
+                print(f"Connection attempt {i+1} failed: {e}. Retrying...")
+                time.sleep(2)
+        return None
 
     def _load_credentials(self) -> Tuple[Optional[str], Optional[str]]:
         """Safely attempts to read core ID and token from local files."""
@@ -536,46 +620,47 @@ class RoonEndpoint(MetaData):
 Test code
 """
 # Pygame setup
+
 # pygame.init()
 # pygame.display.set_caption('Roon Album Art Display')
 # screen = pygame.display.set_mode((1000, 1000))
 # font = pygame.font.Font(None, 36)
-#
+
 # events = Events('Roon')
-#
-#
+
+
 # #RoonAPI startup
 # roon = Roon(events)
-#
+
 # def RoonAction(e):
 #     print('RoonAction> event %s' % e)
 #     print('RoonAction> Meta data: ', roon.artist, roon.track, roon.album, roon.playing, roon.elapsedpc )
-#
+
 # try:
 #     # time.sleep(3)
 #     events.Roon      += RoonAction     # respond to a new sample, or audio silence
 #     while True:
 #         for event in pygame.event.get():
-#
+
 #             """ Update display with image """
 #             # print()
 #             image = pygame.image.load(roon.album_art)
 #             album_art = pygame.transform.scale(image, (1000, 1000))
-#
+
 #             # Display album art in Pygame window
 #             screen.blit(album_art, (0, 0))
-#
+
 #             # Update Pygame window
 #             pygame.display.flip()
-#
-#
+
+
 #             if event.type == pygame.QUIT:
 #                 roon.stop()
 #                 pygame.quit()
 #                 exit()
-#
+
 #             time.sleep(1/60)
-#
+
 # except KeyboardInterrupt:
 #     roon.stop()
 #     pygame.quit()

@@ -1,0 +1,129 @@
+(.venv) Steve@Steves-MacMini-82 pyvisualiser % python tests/vis.py
+/Volumes/Media/dev/pyvisualiser/.venv/lib/python3.11/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+pygame 2.6.1 (SDL 2.28.4, Python 3.11.15)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+
+GraphicsDriverGL.init_display> OpenGL Mode with Pass-Based Renderer
+AudioProcessor.__init__> ready and reading from soundcard BlackHole 2ch, Recording is False 
+Roon Initialization: Credentials loaded successfully.
+VPN detected: Skipping discovery. Connecting directly to Roon Core at 192.168.1.131:9330
+MetaData Info: Target zone 'MacViz + 1' set, id 16018c4275567847c748a5fa8cade27561db
+Roon Initialization: Successfully connected to 'MacViz + 1'.
+EventHandler.MetadataAction> new track - pop up display  new_track
+EventHandler.MetadataAction> track started
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H1
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H2
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H3
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H4
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H5
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H6
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H7
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H8
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS H9
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS GLTestScreen3
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS GLTestScreen1
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS GLTestScreen2
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS BackgroundEffectsScreen0
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS BackgroundEffectsScreen1
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS BackgroundEffectsScreen2
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS AmbientGlowTunerScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS OutlineGlowTestScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS ProfileTestScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS AudioTestScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS BarEffectsTestScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS LEDtestScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS GlowTestScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUTestScreen1
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUTestScreen2
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUImageScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUVintageScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUModernScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUTungstenScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUNeedleStylesScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS VUNeedleEffectsScreen
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS TestVUMetersScreen
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS TestVUImageScreen1
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+ScreenController.__init__> intialised screen --> FIX TO EXCLUDE TEST & CONTROL SCREENS TestVUImageScreen2
+ScreenController.self.events.Control('set',> active screen is  H1
+AudioProcessor.start_capture> ADC/DAC ready  BlackHole 2ch  index> 4
+ScreenController.run> startup configured
+Controller.run> **WARNING** loop time 553.32ms exceeds capture time 23.22ms, audio 0.01ms, draw 35.95ms, render 517.37ms, 0.00fps, 0.00%
+Controller.run> **WARNING** loop time 32.74ms exceeds capture time 23.22ms, audio 0.56ms, draw 23.71ms, render 8.47ms, 29.94fps, 0.00%
+Controller.run> **WARNING** loop time 33.57ms exceeds capture time 23.22ms, audio 0.53ms, draw 25.73ms, render 7.30ms, 29.85fps, 0.00%
+Controller.run> **WARNING** loop time 32.32ms exceeds capture time 23.22ms, audio 0.55ms, draw 23.70ms, render 8.08ms, 29.94fps, 0.00%
+
+ScreenController.self.events.Control('next',> active screen is  H2
+Controller.run> **WARNING** loop time 23.88ms exceeds capture time 23.22ms, audio 0.59ms, draw 16.82ms, render 6.47ms, 47.62fps, 0.00%
+Controller.run> **WARNING** loop time 24.33ms exceeds capture time 23.22ms, audio 0.01ms, draw 16.42ms, render 7.90ms, 49.75fps, 0.00%
+
+ScreenController.self.events.Control('next',> active screen is  H3
+Controller.run> loop time: 9.64ms, audio 0.01ms, draw 8.41ms, render 1.22ms, 47.17fps, 0.0%
+
+ScreenController.self.events.Control('next',> active screen is  H4
+Controller.run> **WARNING** loop time 26.26ms exceeds capture time 23.22ms, audio 0.00ms, draw 23.60ms, render 2.65ms, 35.34fps, 0.00%
+
+ScreenController.self.events.Control('next',> active screen is  H5
+Controller.run> **WARNING** loop time 23.32ms exceeds capture time 23.22ms, audio 0.59ms, draw 19.09ms, render 3.63ms, 41.32fps, 0.00%
+
+ScreenController.self.events.Control('next',> active screen is  H6
+Controller.run> **WARNING** loop time 33.40ms exceeds capture time 23.22ms, audio 0.00ms, draw 27.38ms, render 6.02ms, 29.94fps, 0.00%
+
+ScreenController.self.events.Control('next',> active screen is  H7
+Controller.run> loop time: 18.98ms, audio 0.57ms, draw 16.43ms, render 1.98ms, 50.25fps, 0.0%
+Controller.run> loop time: 18.23ms, audio 0.00ms, draw 16.29ms, render 1.94ms, 50.51fps, 0.0%
+
+ScreenController.self.events.Control('next',> active screen is  H8
+Controller.run> loop time: 18.42ms, audio 0.01ms, draw 16.02ms, render 2.38ms, 50.51fps, 0.0%
+
+ScreenController.self.events.Control('next',> active screen is  H9
+Controller.run> loop time: 18.45ms, audio 0.56ms, draw 16.72ms, render 1.17ms, 53.48fps, 0.0%
+
+ScreenController.self.events.Control('next',> active screen is  GLTestScreen3
+
+ScreenController.self.events.Control('next',> active screen is  GLTestScreen1
+EventHandler.KeyAction> Exiting....
+Platform.stop> shutting down...
+AudioAnalyser.stop> Shutting down analysis thread...
+Platform.stop> shutting down audio
+Stopping Roon connection.
+Platform.stop> shutting down metadata
+Platform.stop> shutting down graphics
