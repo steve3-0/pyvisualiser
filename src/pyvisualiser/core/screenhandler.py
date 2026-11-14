@@ -242,8 +242,25 @@ class ScreenController:
                 title = screen.title + " > " + type(screen).__name__ if hasattr(screen, 'title') else type(screen).__name__
                 self.events.Control('loop_start', text=title)
 
+                # Reset compositor passes for this frame
+                if hasattr(self.platform, 'compositor'):
+                    self.platform.compositor.clear_passes()
+                    # Re-add GeometryPass as UI pass
+                    self.platform.compositor.add_ui_pass(self.platform.gfx_driver.geometry_pass)
+
                 screen.update_screen()
                 drawing_time_ms = (time.perf_counter() - start_draw) * 1000
+
+                # 2. Draw and Render the Frame
+                # start_draw = time.perf_counter()
+                
+                # # build and update the display
+                # screen = self.screens[self.activeScreen]
+                # title = screen.title + " > " + type(screen).__name__ if hasattr(screen, 'title') else type(screen).__name__
+                # self.events.Control('loop_start', text=title)
+
+                # screen.update_screen()
+                # drawing_time_ms = (time.perf_counter() - start_draw) * 1000
 
                 self.events.Control('loop_end')
                 render_time_ms = ((time.perf_counter() - start_draw) * 1000) - drawing_time_ms

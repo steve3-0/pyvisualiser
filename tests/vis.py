@@ -31,6 +31,8 @@ import platform
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
+# Suppress setuptools pkg_resources deprecation warnings originating from third-party libraries like pygame
+warnings.filterwarnings("ignore", category=UserWarning, message=".*pkg_resources is deprecated.*")
 
 """ Screen types are:   Control for utility messages like vol change,  Test to exercise functionality, Base for mixed visual displays """
 # TestVUMetersScreen, TestVUScreen,  

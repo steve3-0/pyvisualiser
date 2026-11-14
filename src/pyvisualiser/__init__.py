@@ -2,76 +2,189 @@
 PyVisualiser - Audio Visualization Library
 ==========================================
 
-A Python library for real-time audio visualization with support for:
-- Spectrum analysis
-- Waveform display  
-- Multiple display backends
-- Audio processing pipelines
+A high-performance GPU-accelerated audio visualization framework
+supporting macOS desktop and embedded Raspberry Pi 5 preamplifiers.
 """
 
-__version__ = "2.0.0" # GPU accelerated version
+import sys
+import warnings
+
+# Suppress setuptools pkg_resources deprecation warnings from third-party libraries (pygame)
+warnings.filterwarnings("ignore", category=UserWarning, message=".*pkg_resources is deprecated.*")
+
+__version__ = "2.0.0"
 __author__ = "Baloothebear4"
 
-# Import main classes so they can be used as: from pyvisualiser import SpectrumAnalyzer
-# Core imports (lifting them from the sub-packages)
-from .core.processaudio import *
-from .core.displaydriver import *
+# Optional macOS platform extensions
+if sys.platform == "darwin":
+    try:
+        import Cocoa  # noqa: F401
+        import Quartz  # noqa: F401
+    except ImportError:
+        pass
 
-# Visualiser imports
-# Note: Since you're moving frames.py and screens.py, update these paths:
+# Core Subsystems
+from .core.processaudio import AudioProcessor, AudioAnalyser
+from .core.displaydriver import (
+    GraphicsDriver,
+    GraphicsDriverGL,
+    GraphicsDriverPi,
+    GraphicsDriverMac,
+    GeometryPass,
+)
+from .core.components import (
+    Frame,
+    Bar,
+    Image,
+    Text,
+    Box,
+    Line,
+    Outline,
+    FontCacheManager,
+)
+from .core.framecore import Frame, ColFramer, RowFramer, ListNext, Colour, Cache, Smoother
+from .core.screenhandler import ScreenController, Platform, EventHandler, HWInterface
+from .core.render import RenderContext, RenderTarget, Compositor, RenderPass, BlurPass, CompositePass
 
-from .visualisers.advanced_frames import *
+# Visualiser Components
+from .visualisers.vumeters import VUFrame, VUMeter, VU2chFrame, VU2chHorzFrame, VUFlipFrame, VUMeterImageFrame
+from .visualisers.metadata import MetaDataFrame, MetaData, MetaImages, PlayProgressFrame, TextFrame, CircularProgress
+from .visualisers.spectrum import SpectrumFrame, Spectrum, StereoSpectrumFrame, Diamondiser, Octaviser
+from .visualisers.oscillogramme import Oscilogramme, OscilogrammeBar, SamplesFrame
+from .visualisers.advanced_frames import EchoWaveFrame, KaleidoscopeFrame, PulseOrbFrame, SpectrumWaveFrame, FreqWaveFrame
+from .visualisers.glvisualisers import Kalidoscope, SpectrumMesh
+from .core.glwrapper import ShaderFrame, GLSLFrame, GLSLRenderPass
 
-# From the core subdirectory
-from .core.components import *
-from .core.framecore import Frame, ColFramer, RowFramer
-from .core.screenhandler import ScreenController, Platform
+# Style System
+# Style System & Presets
+from .styles.styles import (
+    BarStyle,
+    BarEffects,
+    SpectrumStyle,
+    VUMeterStyle,
+    VUNeedleStyle,
+    VUMeterScale,
+    BackgroundStyle,
+    AmbientGlowStyle,
+    ReactiveGlowStyle,
+    PeakAccentStyle,
+    StarfieldStyle,
+    CloudStyle,
+    EdgeLightStyle,
+    OutlineStyle,
+    TextStyle,
+    ReflectionStyle,
+    VignetteStyle,
+    NoiseStyle,
+    OscillogrammeStyle,
+)
+from .styles.presets import (
+    EmbeddedHiFiProfile,
+    DesktopWidgetProfile,
+    LUXURY_PROFILE,
+    NEON_PROFILE,
+    MINIMAL_PROFILE,
+    NeonGlow,
+    StrongEffect,
+    DreamEffect,
+    BackgroundDefault,
+    PaletteDefault,
+    FullScale,
+    OutlineDefault,
+    Centred,
+)
+from .styles.profiles import ProfileManager, ProfileControls, ProfileController
 
-# From the visualisers subdirectory
-from .visualisers.vumeters import *
-from .visualisers.metadata import *
-from .visualisers.spectrum import *
-from .visualisers.oscillogramme import *
 
-
-from .styles.styles import *
-from .styles.presets import *
-
-# Optional: Define what gets imported with "from pyvisualiser import *"
-# __all__ = [
-#     'ScreenController',
-#     'Platform', 
-#     'Frame',
-#     'ColFramer',
-#     'RowFramer','Bar', 'Effects', 'BarStyle', 'SpectrumStyle', 'NeonGlow',
-#     'SpectrumFrame', 'NeonGlow'
-
-#     # Add your main class names here, for example:
-#     # 'SpectrumAnalyzer',
-#     # 'WaveformDisplay', 
-#     # 'AudioProcessor',
-#     # 'Visualiser'
-# ]
-
-# Optional: Package-level convenience functions
-def get_version():
-    """Return the current version of pyvisualiser"""
+def get_version() -> str:
     return __version__
 
-def list_available_visualizers():
-    """List all available visualization classes"""
-    # This would return info about your available visualizers
-    pass
-
-# Dynamically setup all classes and presets to make writing the app code straightforward
-# We want Classes, Functions, AND our Preset Instances
-import inspect
 
 __all__ = [
-    name for name, obj in locals().items() 
-    if not name.startswith("_") and (
-        inspect.isclass(obj) or 
-        inspect.isfunction(obj) or 
-        isinstance(obj, (BarEffects, BarStyle, SpectrumStyle)) # Add this!
-    )
+    "ScreenController",
+    "Platform",
+    "EventHandler",
+    "HWInterface",
+    "Frame",
+    "ColFramer",
+    "RowFramer",
+    "ListNext",
+    "Colour",
+    "Cache",
+    "Smoother",
+    "Bar",
+    "Text",
+    "Image",
+    "Box",
+    "Line",
+    "Outline",
+    "FontCacheManager",
+    "AudioProcessor",
+    "AudioAnalyser",
+    "GraphicsDriver",
+    "GraphicsDriverGL",
+    "GeometryPass",
+    "RenderContext",
+    "RenderTarget",
+    "Compositor",
+    "RenderPass",
+    "BlurPass",
+    "CompositePass",
+    "VUFrame",
+    "VUMeter",
+    "VU2chFrame",
+    "VU2chHorzFrame",
+    "VUFlipFrame",
+    "VUMeterImageFrame",
+    "SpectrumFrame",
+    "Spectrum",
+    "StereoSpectrumFrame",
+    "Diamondiser",
+    "Octaviser",
+    "Oscilogramme",
+    "OscilogrammeBar",
+    "SamplesFrame",
+    "EchoWaveFrame",
+    "KaleidoscopeFrame",
+    "PulseOrbFrame",
+    "SpectrumWaveFrame",
+    "FreqWaveFrame",
+    "Kalidoscope",
+    "SpectrumMesh",
+    "ShaderFrame",
+    "MetaDataFrame",
+    "MetaData",
+    "MetaImages",
+    "PlayProgressFrame",
+    "TextFrame",
+    "CircularProgress",
+    "BarStyle",
+    "BarEffects",
+    "SpectrumStyle",
+    "VUMeterStyle",
+    "VUNeedleStyle",
+    "VUMeterScale",
+    "BackgroundStyle",
+    "AmbientGlowStyle",
+    "ReactiveGlowStyle",
+    "PeakAccentStyle",
+    "StarfieldStyle",
+    "CloudStyle",
+    "EdgeLightStyle",
+    "OutlineStyle",
+    "TextStyle",
+    "ReflectionStyle",
+    "VignetteStyle",
+    "NoiseStyle",
+    "OscillogrammeStyle",
+    "EmbeddedHiFiProfile",
+    "DesktopWidgetProfile",
+    "LUXURY_PROFILE",
+    "NEON_PROFILE",
+    "MINIMAL_PROFILE",
+    "NeonGlow",
+    "ProfileManager",
+    "ProfileControls",
+    "ProfileController",
+    "get_version",
 ]
