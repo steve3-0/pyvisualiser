@@ -562,6 +562,8 @@ class GeometryPass(RenderPass):
 
                 rgba_data = pygame.image.tostring(gradient_image, "RGBA", False)
                 texture = self.ctx.texture(gradient_image.get_size(), 4, rgba_data)
+                texture.build_mipmaps()
+                texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
                 
                 if texture_holder:
                     texture_holder._gl_texture = texture
@@ -739,7 +741,11 @@ class GeometryPass(RenderPass):
                 texture_holder._gl_texture = None
 
             texture = self.ctx.texture(source.get_size(), 4, rgba_data)
-
+            # ensure that images scale properly with logical coordinates and high-DPI displays
+            texture = self.ctx.texture(source.get_size(), 4, rgba_data)
+            texture.build_mipmaps()
+            texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+            
             if texture_holder:
                 texture_holder._gl_texture = texture
 
