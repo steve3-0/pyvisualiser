@@ -325,9 +325,11 @@ class RoonEndpoint(MetaData):
         self.roon = None
         self.connect()
 
-    def _find_best_server(self, discover: RoonDiscovery) -> Optional[Tuple[str, str]]:
+    def _find_best_server(self, servers: list) -> Optional[Tuple[str, str]]:
         """Filters discovered servers for LAN addresses to avoid VPN interfaces."""
-        servers = discover.all()
+        if not servers:
+            print("Roon Discovery Warning: No servers found during discovery.")
+            return None
         
         # 1. Detect if VPN is active by checking utun interfaces for an IPv4 address
         is_vpn_active = any(
@@ -346,41 +348,6 @@ class RoonEndpoint(MetaData):
         
         return servers[0] if servers else None
 
-    # def connect(self):
-    #     """Explicit connection method to handle network setup and retries."""
-    #     try:
-    #         core_id, token = self._connect_to_roon()
-
-    #         # Use Discovery to find the server IP/Port for the core_id
-    #         print(f"Connecting to Roon Core {core_id}...")
-    #         # discover = RoonDiscovery(core_id)
-    #         # server = self._find_best_server(discover)
-    #         # discover.stop()
-    #         # Debug: See what discovery returns
-    #         discover = RoonDiscovery(core_id)
-    #         all_servers = discover.all()
-    #         print(f"DEBUG: Discovered servers: {all_servers}")
-            
-    #         server = self._find_best_server(discover)
-    #         discover.stop()
-            
-    #         print(f"DEBUG: Selected server: {server}")
-
-    #         if server:
-    #             # Retry loop to handle Errno 49 / intermittent binding issues
-    #             self.roon = self._connect_with_retry(server, token)
-    #             self._initialize_state()
-    #             self.set_target_zone(self._target_zone_name)
-    #             self.roon.register_state_callback(self.roon_callback)
-    #             print(f"Roon Initialization: Successfully connected to '{self._target_zone_name}'.")
-    #         else:
-    #             print("Roon Initialization Warning: Cached Core not found on network.")
-    #             self.roon = None
-    #             self._initialize_state()
-    #             self._target_zone = ''
-    #     except Exception as e:
-    #         print(f"\n Roon failed to initialise: {e}")
-
     def connect(self):
         """Explicit connection method to handle network setup and retries."""
         try:
@@ -395,8 +362,8 @@ class RoonEndpoint(MetaData):
 
             # 2. If VPN is active, skip discovery entirely to avoid Errno 49
             if is_vpn_active:
-                print("VPN detected: Skipping discovery. Connecting directly to Roon Core at 192.168.1.131:9330")
-                server = ("192.168.1.131", 9330)
+                server = self._get_cached_server() # ("192.168.1.131", 9330)
+                print(f"VPN detected: Skipping discovery. Connecting directly to Roon Core at cached roon server: '{server}'")
             else:
                 # Normal discovery path
                 print(f"Connecting to Roon Core {core_id}...")
@@ -404,7 +371,8 @@ class RoonEndpoint(MetaData):
                 # Debug: See what discovery returns
                 all_servers = discover.all()
                 print(f"DEBUG: Discovered servers: {all_servers}")
-                server = self._find_best_server(discover)
+                server = self._find_best_server(all_servers)
+                self._cache_server(server)  # Cache the selected server for future runs
                 discover.stop()
                 print(f"DEBUG: Selected server: {server}")
 
@@ -414,7 +382,7 @@ class RoonEndpoint(MetaData):
                 self._initialize_state()
                 self.set_target_zone(self._target_zone_name)
                 self.roon.register_state_callback(self.roon_callback)
-                print(f"Roon Initialization: Successfully connected to '{self._target_zone_name}'.")
+                print(f"Roon Initialization: Successfully connected to '{self._target_zone_name}'. @ {server}")
             else:
                 print("Roon Initialization Warning: Cached Core not found on network.")
                 self.roon = None
@@ -423,15 +391,44 @@ class RoonEndpoint(MetaData):
         except Exception as e:
             print(f"\n Roon failed to initialise: {e}")
 
+    def _cache_server(self, server: Optional[Tuple[str, int]]):
+        """Caches the selected server to a local file for future runs."""
+        if server:
+            with open("my_server_cache_file", "w") as f:
+                f.write(f"{server[0]}:{server[1]}") 
+
+    def _get_cached_server(self) -> Optional[Tuple[str, int]]:
+        """Retrieves the cached server from local file if it exists."""
+        try:
+            with open("my_server_cache_file", "r") as f:
+                data = f.read().strip()
+                ip, port = data.split(":")
+                return (ip, int(port))
+        except FileNotFoundError:
+            print("Roon Initialization Warning: Server cache file not found. Switch off VPN to create cache.")
+            return None
+        except Exception as e:
+            print(f"Roon Initialization Error reading server cache: {e}")
+            return None
+
+
     def _connect_with_retry(self, server, token, retries=3):
-        """Attempts to connect to Roon with backoff."""
+        # from roonapi import RoonApi # Local import to avoid circular if needed
         for i in range(retries):
             try:
-                return RoonApi(self.appinfo, token, server[0], server[1], True)
-            except OSError as e:
+                api = RoonApi(self.appinfo, token, server[0], server[1], True)
+                # If we get here, token is valid
+                return api
+            except OSError as e: # Network bind/timeout
                 if i == retries - 1: raise
-                print(f"Connection attempt {i+1} failed: {e}. Retrying...")
+                print(f"Connection attempt {i+1} failed (OSError): {e}. Retrying...")
                 time.sleep(2)
+            except Exception as e: # Catch RoonApi.AuthorizationError, etc.
+                print(f"Authorization failed: {e}. Deleting stale token.")
+                # Nuke the bad token so next run forces re-auth
+                if TOKEN_FILE.exists(): TOKEN_FILE.unlink()
+                if CORE_ID_FILE.exists(): CORE_ID_FILE.unlink()
+                raise # Re-raise to trigger _authenticate flow
         return None
 
     def _load_credentials(self) -> Tuple[Optional[str], Optional[str]]:

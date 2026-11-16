@@ -107,9 +107,9 @@ class GLSLFrame(Frame):
         }
     """
 
-    def __init__(self, parent, shader_name, **kwargs):
+    def __init__(self, parent, shader, colour=None, **kwargs):
         super().__init__(parent, **kwargs)
-        self.shader_name = shader_name
+        self.shader_name = shader
         self.ctx = None
         self.prog = None
         self.vao = None

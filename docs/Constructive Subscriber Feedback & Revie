@@ -1,0 +1,28 @@
+ Constructive Subscriber Feedback & Review
+As an active subscriber using pyvisualiser for desktop widgets, here is my honest architectural and aesthetic review of what works brilliantly and where the API can be evolved even further:
+
+🟢 What is Exceptionally Good
+Shader Injection & Background System (BackgroundStyle(shader=...)): Being able to swap out complex raymarching shaders like liquidorb, warping, or starvis as a background layer with a single line of Python is incredible. It instantly gives desktop widgets a professional VJ-software tier polish.
+
+ColFramer / RowFramer Compositing: Building multi-panel layouts feels natural and declarative. The percentage-based relative scaling means windows resize or adapt to different display aspect ratios without breaking offsets.
+
+Additive Bloom & Layer Separation (Phase 2 Success): Because UI text and vectors now render after the bloom composite pass, glowing elements (like the neon spectrum tips and needle highlights) bloom gorgeously without polluting or blurring the typography.
+
+🟡 What Could Be Even Better (Future Enhancements)
+Dynamic Layout Margin / Gap Support in Framers:
+
+Current: ColFramer and RowFramer divide space evenly or via ratios with a percentage padding (padpc).
+
+Improvement: Adding explicit pixel-gap support (e.g., gap=10 in pixels) alongside percentage ratios would make fixed-size desktop widgets much easier to align against fixed-width UI controls (like a 64px volume knob).
+
+Shader Uniform Auto-Binding:
+
+Current: Shaders require manual uniform checks (if 'u_vu' in self.prog: ...) in ShaderFrame or BackgroundRenderPass.
+
+Improvement: A standardized uniform injection dictionary where audio state variables (vu, bass, treble, bpm, centroid, flux) are bulk-injected automatically into any active GLSL program would drastically clean up custom shader writing.
+
+Window Opacity & Click-Through Flags:
+
+Target: Desktop widgets.
+
+Improvement: Exposing window hints in GraphicsDriverGL (such as setting an SDL window hint for window transparency/alpha blending or click-through window flags) would allow pyvisualiser to run as a true borderless, transparent floating desktop widget over wallpaper background apps.

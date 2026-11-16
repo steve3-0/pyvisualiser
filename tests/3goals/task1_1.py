@@ -28,6 +28,7 @@ pygame.font.init()
 from pyvisualiser.core.components import Text, FontCacheManager
 from pyvisualiser.styles.profiles import ProfileManager
 from pyvisualiser.styles.presets import EmbeddedHiFiProfile
+from pyvisualiser.core.displaydriver import RenderContext, DisplayMetrics
 
 # Satisfy profile lookups
 ProfileManager.set_profile(EmbeddedHiFiProfile)

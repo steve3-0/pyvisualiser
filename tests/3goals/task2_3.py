@@ -18,20 +18,33 @@ if SRC_PATH not in sys.path:
 
 import pygame
 pygame.init()
-pygame.display.set_mode((100, 100), pygame.OPENGL | pygame.DOUBLEBUF)
 
 import moderngl
 from pyvisualiser.core.render import RenderContext, DisplayMetrics
 from pyvisualiser.core.displaydriver import GeometryPass
+from pyvisualiser.styles.profiles import ProfileManager
+from pyvisualiser.styles.presets import EmbeddedHiFiProfile
+
+ProfileManager.set_profile(EmbeddedHiFiProfile)
+
+
+class MockPlatform:
+    def __init__(self, metrics):
+        self.W = metrics.logical_w
+        self.H = metrics.logical_h
+        self.metrics = metrics
+
 
 def test_texture_filtering_policy():
     print("=" * 70)
     print("Running Task 2.3 Verification Test: Texture Filtering Policy")
     print("=" * 70)
 
+    # Use a pure headless standalone ModernGL context (no window/display driver needed)
     ctx = moderngl.create_context(standalone=True)
     metrics = DisplayMetrics(logical_w=1280, logical_h=400, dpi_scale=1.0)
-    render_context = RenderContext(ctx, metrics)
+    platform = MockPlatform(metrics)
+    render_context = RenderContext(ctx, metrics, platform=platform)
     geometry_pass = GeometryPass(render_context)
 
     # Create a dummy surface simulating an album art load
@@ -56,6 +69,7 @@ def test_texture_filtering_policy():
     print("=" * 70)
     print("[+] TASK 2.3 TEST PASSED SUCCESSFULLY!")
     print("=" * 70)
+
 
 if __name__ == "__main__":
     test_texture_filtering_policy()

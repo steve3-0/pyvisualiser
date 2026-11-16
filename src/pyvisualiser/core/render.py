@@ -554,7 +554,10 @@ class ToneMappingPass(RenderPass):
 
 
 class FXAAPass(RenderPass):
-    """Fast Approximate Anti-Aliasing applied exclusively to 3D scenes."""
+    """
+    Fast Approximate Anti-Aliasing (FXAA) pass with UI luma-masking exclusion.
+    Smooths 3D shader/background edges while preserving 100% pixel-sharp text and vector UI.
+    """
     def __init__(self, context: RenderContext):
         super().__init__(context)
         self.prog = self.ctx.program(
@@ -571,6 +574,7 @@ class FXAAPass(RenderPass):
             fragment_shader="""
                 #version 330
                 uniform sampler2D tex;
+                uniform sampler2D u_ui_mask;
                 uniform vec2 resolution;
                 in vec2 v_uv;
                 out vec4 f_colour;
@@ -586,6 +590,12 @@ class FXAAPass(RenderPass):
                 #endif
 
                 void main() {
+                    // Exclusion Check: If this pixel belongs to a UI/Text element (mask > 0.1), skip FXAA
+                    if (texture(u_ui_mask, v_uv).r > 0.1) {
+                        f_colour = texture(tex, v_uv);
+                        return;
+                    }
+
                     vec2 inverseVP = 1.0 / resolution;
                     vec3 rgbNW = texture(tex, v_uv + (vec2(-1.0, -1.0) * inverseVP)).xyz;
                     vec3 rgbNE = texture(tex, v_uv + (vec2(1.0, -1.0) * inverseVP)).xyz;
@@ -625,7 +635,7 @@ class FXAAPass(RenderPass):
         )
         self.quad_vao = self.ctx.simple_vertex_array(self.prog, context.get_quad_buffer(), 'in_vert', 'in_uv')
 
-    def render(self, input_target: RenderTarget, output_target: RenderTarget = None, **kwargs):
+    def render(self, input_target: RenderTarget, ui_mask_target: RenderTarget, output_target: RenderTarget = None, **kwargs):
         if output_target:
             output_target.use()
             self.ctx.viewport = (0, 0, output_target.texture.width, output_target.texture.height)
@@ -638,10 +648,12 @@ class FXAAPass(RenderPass):
 
         self.ctx.disable(moderngl.BLEND)
         input_target.texture.use(location=0)
+        ui_mask_target.texture.use(location=1)
+        
         self.prog['tex'].value = 0
+        self.prog['u_ui_mask'].value = 1
         self.prog['resolution'].value = (float(input_target.texture.width), float(input_target.texture.height))
         self.quad_vao.render(moderngl.TRIANGLE_STRIP)
-
 
 class MaskPass(RenderPass):
     """Renders frame interior areas to a mask texture to prevent glow bleed."""

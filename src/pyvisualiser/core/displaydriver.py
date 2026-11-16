@@ -47,6 +47,44 @@ class PygameRenderer:
         pygame.draw.lines(self.surface, color, closed, points, width)
 
 
+"""
+Intelligently probes the active Linux session on Raspberry Pi 5 / Debian 
+and sets the appropriate SDL_VIDEODRIVER environment variables.
+"""
+def detect_linux_display_backend() -> str:
+
+    # 1. Wayland Desktop (Raspberry Pi OS Bookworm Default)
+    if "WAYLAND_DISPLAY" in os.environ:
+        os.environ["SDL_VIDEODRIVER"] = "wayland"
+        print(f"DisplayBackend> Detected Wayland compositor: {os.environ['WAYLAND_DISPLAY']}")
+        return "wayland"
+
+    # 2. X11 Session
+    if "DISPLAY" in os.environ:
+        os.environ["SDL_VIDEODRIVER"] = "x11"
+        print(f"DisplayBackend> Detected X11 server: {os.environ['DISPLAY']}")
+        return "x11"
+
+    # 3. Headless Console / Direct Framebuffer (KMS/DRM)
+    os.environ["SDL_VIDEODRIVER"] = "kmsdrm"
+    os.environ["SDL_NOMOUSE"] = "1"
+    
+    # Dynamically find the active DRM card (prefer card1 or card0)
+    card_path = None
+    for card_idx in [1, 0, 2]:
+        candidate = f"/dev/dri/card{card_idx}"
+        if os.path.exists(candidate):
+            card_path = candidate
+            break
+
+    if card_path:
+        os.environ["SDL_VIDEODEVICE"] = card_path
+        print(f"DisplayBackend> Console mode: bound KMS/DRM to {card_path}")
+    else:
+        print("DisplayBackend> Warning: No /dev/dri/card* found. Relying on default SDL DRM.")
+
+    return "kmsdrm"
+
 class GraphicsDriverPi:
     """Raspberry Pi direct KMS/DRM framebuffer platform."""
     BACKGROUND_COLOR = (10, 10, 20)
@@ -134,6 +172,9 @@ class GraphicsDriverGL:
 
         rotation = int(os.environ.get("PYVISUALISER_ROTATION", "0"))
 
+        if sys.platform.startswith("linux"):
+            detect_linux_display_backend()
+
         self.metrics = DisplayMetrics(
             logical_w=logical_w,
             logical_h=logical_h,
@@ -146,11 +187,17 @@ class GraphicsDriverGL:
               f"Aspect: {self.metrics.aspect_ratio:.2f}")
 
         # 2. ModernGL Core Pipeline Initialization
-        mgl_ctx = moderngl.create_context()
+        # Context creation with OpenGL ES 3.1 fallback for Broadcom VideoCore VII (RPi 5)
+        try:
+            mgl_ctx = moderngl.create_context(require=330)
+        except Exception as e:
+            print(f"GraphicsDriverGL> OpenGL 3.3 Core unavailable ({e}). Falling back to OpenGL ES 3.1...")
+            mgl_ctx = moderngl.create_context(require=310)
+
         # Query the actual physical drawable size from the pygame window / OpenGL surface
-        print(f"DEBUG: Default FBO 0 size: {mgl_ctx.fbo.size}")
-        if hasattr(mgl_ctx, 'screen') and mgl_ctx.screen:
-            print(f"DEBUG: mgl_ctx.screen size: {mgl_ctx.screen.size}")
+        # print(f"DEBUG: Default FBO 0 size: {mgl_ctx.fbo.size}")
+        # if hasattr(mgl_ctx, 'screen') and mgl_ctx.screen:
+        #     print(f"DEBUG: mgl_ctx.screen size: {mgl_ctx.screen.size}")
 
         self.render_context = RenderContext(mgl_ctx, self.metrics, platform=self)
         self.compositor = Compositor(self.render_context)
@@ -162,6 +209,8 @@ class GraphicsDriverGL:
         self.renderer = self.geometry_pass
         self.screen = pygame.Surface((self.W, self.H))
         self.ave_area_pc = 0.0
+
+
 
     def init_display(self):
         pygame.init()

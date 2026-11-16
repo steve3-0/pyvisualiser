@@ -110,7 +110,7 @@ DesktopWidgetProfile = VisualiserProfile(
     name="Desktop Visualiser Widget",
     target_resolution=(800, 600),
     fullscreen=False,
-    framerate=30,  # Lighter footprint for desktop
+    framerate=60,  # Lighter footprint for desktop
     default_palette='std',
     effects=BarEffects(scale=1.0, blur=0.5, alpha=100),
     background_style=BackgroundStyle(colour='background', texture_opacity=0.0)

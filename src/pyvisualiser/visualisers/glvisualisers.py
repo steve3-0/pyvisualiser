@@ -6,6 +6,10 @@ import numpy as np
 import moderngl
 import time
 
+class ShaderFrame(GLSLFrame):
+    pass
+
+
 def perspective_matrix(fovy, aspect, near, far):
     """Creates a row-major perspective projection matrix."""
     f = 1.0 / np.tan(np.radians(fovy) / 2.0)

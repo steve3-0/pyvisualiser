@@ -24,6 +24,7 @@ import  pyaudio
 import  wave
 from    queue import Queue, Empty, Full
 from    events import Events
+from    pyvisualiser.core.audio_ring_buffer import AudioRingBuffer
 
 
 # constants
@@ -271,8 +272,20 @@ class AudioProcessor(AudioData):
         self.readtime   = []
         self.silence    = WindowAve(SILENCESAMPLES)
         self.window     = np.kaiser(FRAME + 0, WINDOW)  #Hanning window
-        print("AudioProcessor.__init__> ready and reading from soundcard %s, Recording is %s " % (self.recorder.get_device_info_by_index(self.device)['name'], RECORDSTATE))
 
+        # High-capacity lock-free audio ring buffer (holds up to ~740ms of audio)
+        self.ring_buffer = AudioRingBuffer(capacity=32768, max_chunk=FRAMESIZE)
+
+        # Safe device name lookup for logging
+        dev_name = "Mock/None"
+        if self.device is not None:
+            try:
+                dev_name = self.recorder.get_device_info_by_index(self.device).get('name', 'Unknown')
+            except Exception:
+                dev_name = f"Index {self.device}"
+
+        print("AudioProcessor.__init__> ready and reading from soundcard %s, Recording is %s" % (dev_name, self.recordingState))
+      
         self.audio_queue = Queue(maxsize=AUDIO_QUEUE_MAXSIZE)
 
 
@@ -281,28 +294,30 @@ class AudioProcessor(AudioData):
         return FRAME    
 
     def find_device_index(self, device):
-        # print("\nTarget audio device:", device)
-        # print("Available audio devices:")
-        # for i in range(p.get_device_count()):
-        #     info = p.get_device_info_by_index(i)
-        #     if info['maxInputChannels'] > 0:
-        #         print(f"  Device {i}: {info['name']} (inputs: {info['maxInputChannels']})")
-  
         p = self.recorder
+        self.device = None
         try:
-            # Try to find the loopback device
-            loopback_device = None
+            # 1. Search for requested device name
             for i in range(p.get_device_count()):
                 info = p.get_device_info_by_index(i)
-                if device.lower() in info['name'].lower():
+                if info.get('maxInputChannels', 0) > 0 and device.lower() in info['name'].lower():
                     self.device = i
-                    # print(f"Found loop back device {info['name']}  at index {info['index']} ")
-                    break
+                    return
 
+            # 2. If not found, fallback to system default input
+            if self.device is None and p.get_device_count() > 0:
+                try:
+                    default_info = p.get_default_input_device_info()
+                    self.device = default_info['index']
+                except Exception:
+                    # Fallback to first available input device
+                    for i in range(p.get_device_count()):
+                        if p.get_device_info_by_index(i).get('maxInputChannels', 0) > 0:
+                            self.device = i
+                            break
         except Exception as e:
-            print(f"\nAudioProcessor.find_device_index> ❌ ERROR: {e}")
-            print("AudioProcessor.find_device_index> Check your ALSA configuration and device permissions")
-            self.device = 4
+            print(f"AudioProcessor.find_device_index> Warning: {e}")
+            self.device = None
         
 
     def start_capture(self):
@@ -326,37 +341,45 @@ class AudioProcessor(AudioData):
 
     # ------------switch to running the callback in a queue to prevent blocking --------------
     def callback(self, in_data, frame_count, time_info, status):
-
-        # 1. START HIGH-RESOLUTION TIMER
-        start_time = time.perf_counter()
-        
-        # 2. CHECK FOR AUDIO BUFFER OVERFLOW
-        # The 'status' flag tells us if the buffer overflowed BEFORE we even started processing.
+        """High-priority audio callback: writes raw bytes into lock-free ring buffer."""
         if status & pyaudio.paInputOverflow:
-            print(f"AudioProcessor.callback> *** [FRAME DROPPED] *** queue size ", self.audio_queue.qsize())
-            
-        # --- Existing Audio Capture and Processing ---
-        try:
-            in_data = np.frombuffer(in_data, dtype=np.int16)
-            if not self.audio_queue.full():
-                self.audio_queue.put_nowait(in_data)
-                # print("AudioProcessor.callback> audio frame queued, queue size:", self.audio_queue.qsize())
-        except Exception as e:
-            print("AudioProcessor.callback> exception ", e)
-            pass
-        return (None, pyaudio.paContinue)        
+            pass # Overflow handled natively by ring buffer head advance
 
-        # self.events.Audio('capture')
-        
-        processing_time_ms = (time.perf_counter() - start_time) * 1000
-    
-        # 3. CHECK AGAINST TIME BUDGET
-        # We must ensure this method runs faster than the time it took the audio to arrive.
-        if processing_time_ms > CRITICAL_TIME_MS:
-            print(f"AudioProcessor.callback> *** [LATENCY WARNING]: {processing_time_ms:.2f} vs {CRITICAL_TIME_MS:.2f} ms ***")
-        
-        # Continue stream
+        self.ring_buffer.write(in_data)
         return (None, pyaudio.paContinue)
+    
+    # def callback(self, in_data, frame_count, time_info, status):
+
+    #     # 1. START HIGH-RESOLUTION TIMER
+    #     start_time = time.perf_counter()
+        
+    #     # 2. CHECK FOR AUDIO BUFFER OVERFLOW
+    #     # The 'status' flag tells us if the buffer overflowed BEFORE we even started processing.
+    #     if status & pyaudio.paInputOverflow:
+    #         print(f"AudioProcessor.callback> *** [FRAME DROPPED] *** queue size ", self.audio_queue.qsize())
+            
+    #     # --- Existing Audio Capture and Processing ---
+    #     try:
+    #         in_data = np.frombuffer(in_data, dtype=np.int16)
+    #         if not self.audio_queue.full():
+    #             self.audio_queue.put_nowait(in_data)
+    #             # print("AudioProcessor.callback> audio frame queued, queue size:", self.audio_queue.qsize())
+    #     except Exception as e:
+    #         print("AudioProcessor.callback> exception ", e)
+    #         pass
+    #     return (None, pyaudio.paContinue)        
+
+    #     # self.events.Audio('capture')
+        
+    #     processing_time_ms = (time.perf_counter() - start_time) * 1000
+    
+    #     # 3. CHECK AGAINST TIME BUDGET
+    #     # We must ensure this method runs faster than the time it took the audio to arrive.
+    #     if processing_time_ms > CRITICAL_TIME_MS:
+    #         print(f"AudioProcessor.callback> *** [LATENCY WARNING]: {processing_time_ms:.2f} vs {CRITICAL_TIME_MS:.2f} ms ***")
+        
+    #     # Continue stream
+    #     return (None, pyaudio.paContinue)
 
     def get_analysis(self):
         """Returns the latest spectral data from the analyser thread."""
@@ -366,54 +389,89 @@ class AudioProcessor(AudioData):
 
     def is_audio_available(self):
         """
-        Polls the audio queue, processes stereo samples for legacy VU meters,
-        and feeds normalized mono chunks to the Aubio background thread.
+        Pulls audio frames from the ring buffer.
+        Returns True if a full frame was read and processed.
         """
-        # Reset the flag for this check
         self.audio_available = False
-
-        if not self.audio_queue.empty():
+        
+        # Pull one full stereo frame chunk (e.g. 2048 samples = 1024 stereo frames)
+        data = self.ring_buffer.read(FRAMESIZE)
+        if data is not None:
             try:
-                # 1. Get raw int16 data from the capture thread
-                data = self.audio_queue.get_nowait()
-                
-                # 2. Split for Legacy Stereo components (VU meters, etc.)
-                # data is interleaved [L, R, L, R...]
                 self.samples['left']  = data[0::2]
                 self.samples['right'] = data[1::2]
                 
-                # 3. Create Mono Int16 for existing logic
-                # Reshape to (1024, 2) and average across axis 1
                 mono_int16 = np.mean(data.reshape(-1, CHANNELS), axis=1).astype(np.int16)
                 self.samples['mono']  = mono_int16
                 
-                # 4. Normalize to Float32 (-1.0 to 1.0) for Aubio
-                # Aubio crashes or produces noise if not float32 or if range is wrong
                 mono_float32 = mono_int16.astype(np.float32) / 32768.0
 
-                # 5. Feed the Analyser in "Hops"
-                # If FRAME is 1024 and hop_s is 512, this loop runs twice.
-                # This ensures the Analyser thread gets exactly what it expects.
                 hop_s = self.analysis.hop_s
                 for i in range(0, len(mono_float32), hop_s):
                     chunk = mono_float32[i : i + hop_s]
                     if len(chunk) == hop_s:
-                        # print("DEBUG: Feeding chunk to Analyser")
                         self.analysis.add_samples(chunk)
 
-                # 6. Housekeeping
                 if self.recording:
                     self.record(data)
-                
-                self.audio_available = True
 
-            except Empty:
-                self.audio_available = False
+                self.audio_available = True
             except Exception as e:
                 print(f"AudioProcessor.is_audio_available> Error: {e}")
                 self.audio_available = False
 
         return self.audio_available
+
+    # def is_audio_available(self):
+    #     """
+    #     Polls the audio queue, processes stereo samples for legacy VU meters,
+    #     and feeds normalized mono chunks to the Aubio background thread.
+    #     """
+    #     # Reset the flag for this check
+    #     self.audio_available = False
+
+    #     if not self.audio_queue.empty():
+    #         try:
+    #             # 1. Get raw int16 data from the capture thread
+    #             data = self.audio_queue.get_nowait()
+                
+    #             # 2. Split for Legacy Stereo components (VU meters, etc.)
+    #             # data is interleaved [L, R, L, R...]
+    #             self.samples['left']  = data[0::2]
+    #             self.samples['right'] = data[1::2]
+                
+    #             # 3. Create Mono Int16 for existing logic
+    #             # Reshape to (1024, 2) and average across axis 1
+    #             mono_int16 = np.mean(data.reshape(-1, CHANNELS), axis=1).astype(np.int16)
+    #             self.samples['mono']  = mono_int16
+                
+    #             # 4. Normalize to Float32 (-1.0 to 1.0) for Aubio
+    #             # Aubio crashes or produces noise if not float32 or if range is wrong
+    #             mono_float32 = mono_int16.astype(np.float32) / 32768.0
+
+    #             # 5. Feed the Analyser in "Hops"
+    #             # If FRAME is 1024 and hop_s is 512, this loop runs twice.
+    #             # This ensures the Analyser thread gets exactly what it expects.
+    #             hop_s = self.analysis.hop_s
+    #             for i in range(0, len(mono_float32), hop_s):
+    #                 chunk = mono_float32[i : i + hop_s]
+    #                 if len(chunk) == hop_s:
+    #                     # print("DEBUG: Feeding chunk to Analyser")
+    #                     self.analysis.add_samples(chunk)
+
+    #             # 6. Housekeeping
+    #             if self.recording:
+    #                 self.record(data)
+                
+    #             self.audio_available = True
+
+    #         except Empty:
+    #             self.audio_available = False
+    #         except Exception as e:
+    #             print(f"AudioProcessor.is_audio_available> Error: {e}")
+    #             self.audio_available = False
+
+    #     return self.audio_available
     #----------------------------------------
 
     def start_recording(self):

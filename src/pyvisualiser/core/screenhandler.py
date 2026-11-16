@@ -10,6 +10,7 @@ from    pyvisualiser.endpoints.roon import RoonEndpoint
 from    pyvisualiser.core.displaydriver import GraphicsDriver
 
 from    pyvisualiser.core.framecore import ListNext
+from    pyvisualiser.core.state import AudioSnapshot, MediaSnapshot
 from    pygame.locals import *   # this pulls down all the K_* constants
 import  time
 from    events import Events
@@ -25,6 +26,7 @@ EVENTS  =  ( 'Control', 'Audio', 'KeyPress', 'Metadata', 'Screen' )
 class MetaData(RoonEndpoint):
     pass
 
+""" Mock HW Platform providing display, audio and physical controls """
 class HWInterface():
     """ Base class for Hardware Interface """
     def __init__(self):
@@ -70,22 +72,77 @@ class HWInterface():
         #in time a call to the base HW is needed to read the actual volume setting
         return self.audio_format    
 
-""" HW Platform providing display, audio and physical controls """
-class Platform(AudioProcessor, MetaData, GraphicsDriver, HWInterface):
-    def __init__(self, events, hw_platform):
-        GraphicsDriver.__init__(self, events, gfx=hw_platform['gfx'])
-        AudioProcessor.__init__(self, events, device=hw_platform['loopback'])
-        MetaData.__init__(self, events, maxwh=self.wh, target_name=hw_platform['roon_zone'])
-        HWInterface.__init__(self)
+
+class Platform:
+    """
+    Unified platform coordinator.
+    Composes audio capture, metadata endpoint, graphics driver, and hardware controls.
+    Uses transparent delegation for backward-compatible attribute access.
+    """
+    def __init__(self, events, hw_platform: dict):
+        self.events = events
+        self.hw_config = hw_platform
+
+        # 1. Compose Subsystems Cleanly
+        self.gfx = GraphicsDriver(events, gfx=hw_platform.get('gfx', 'gl'))
+        self.audio = AudioProcessor(events, device=hw_platform.get('loopback', 'BlackHole 2ch'))
+        self.media = RoonEndpoint(events, maxwh=self.gfx.wh, target_name=hw_platform.get('roon_zone', 'MacViz'))
+        self.hw = HWInterface()
+
+    def __getattr__(self, name: str):
+        """
+        Transparently forwards legacy attribute lookups to sub-systems.
+        e.g., self.platform.vu -> self.platform.audio.vu
+              self.platform.track -> self.platform.media.track
+              self.platform.renderer -> self.platform.gfx.renderer
+        """
+        for subsystem in (self.audio, self.media, self.gfx, self.hw):
+            if hasattr(subsystem, name):
+                return getattr(subsystem, name)
+        raise AttributeError(f"'Platform' object and its subsystems have no attribute '{name}'")
+
+    def get_audio_snapshot(self) -> AudioSnapshot:
+        """Export an immutable telemetry frame."""
+        return AudioSnapshot(
+            vu=self.audio.vu.copy(),
+            peaks=self.audio.peak.copy() if hasattr(self.audio, 'peak') else {},
+            bins=self.audio.bins.copy(),
+            samples=self.audio.samples.copy(),
+            bass=getattr(self.audio, 'bass', 0.0),
+            treble=getattr(self.audio, 'treble', 0.0),
+            bpm=getattr(self.audio, 'bpm', 0.0),
+            is_beat='beat' in getattr(self.audio, 'trigger_detected', []),
+        )
+
+    def get_media_snapshot(self) -> MediaSnapshot:
+        """Export an immutable media frame."""
+        return MediaSnapshot(
+            track=self.media.track,
+            artist=self.media.artist,
+            album=self.media.album,
+            duration=self.media.duration,
+            elapsed=self.media.elapsed,
+            volume=self.hw.volume,
+            volume_db=self.hw.volume_db,
+            source=self.hw.source,
+            format=self.hw.format,
+            sample_rate=self.hw.sample_rate,
+            playing=self.media.playing,
+            album_art=self.media.album_art,
+            artist_art=self.media.artist_art,
+        )
+
+    def start_capture(self):
+        self.audio.start_capture()
+
+    def stop_capture(self):
+        self.audio.stop_capture()
 
     def stop(self):
         print("Platform.stop> shutting down...")
-        self.stop_capture()
-        print("Platform.stop> shutting down audio")
-        self.metadata_stop()
-        print("Platform.stop> shutting down metadata")
-        self.graphics_end()
-        print("Platform.stop> shutting down graphics")
+        self.audio.stop_capture()
+        self.media.metadata_stop()
+        self.gfx.graphics_end()
 
 
 

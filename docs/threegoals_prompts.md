@@ -311,6 +311,8 @@ Create a standalone script `tests/test_task_2_4.py`:
 - Verify that diagonal lines are smoothed by FXAA while text pixel contrast remains 100% sharp (measure Laplacian sharpness on text regions before and after).
 
 Provide the updated shader, Python pass code, and test script.
+
+
 Phase 3: Architecture & Embedded Hardware Hardening
 Prompt 3.1: Decouple UI Frames from Monolithic Platform via State Carriers
 Markdown
