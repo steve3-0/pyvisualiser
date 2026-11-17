@@ -53,7 +53,7 @@ from .visualisers.spectrum import SpectrumFrame, Spectrum, StereoSpectrumFrame, 
 from .visualisers.oscillogramme import Oscilogramme, OscilogrammeBar, SamplesFrame
 from .visualisers.advanced_frames import EchoWaveFrame, KaleidoscopeFrame, PulseOrbFrame, SpectrumWaveFrame, FreqWaveFrame
 from .visualisers.glvisualisers import Kalidoscope, SpectrumMesh
-from .core.glwrapper import ShaderFrame, GLSLFrame, GLSLRenderPass
+from .core.glwrapper import ShaderFrame, ShaderFrame, GLSLRenderPass
 
 # Style System
 # Style System & Presets

@@ -23,8 +23,8 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 warnings.filterwarnings("ignore", category=UserWarning, message=".*pkg_resources is deprecated.*")
 
 
-# SCREENS = (DesktopNexusScreen, AuraCanvasScreen, StellarPulseScreen )
-SCREENS = (StellarPulseScreen, DesktopNexusScreen, AuraCanvasScreen )
+SCREENS = (DesktopNexusScreen, AuraCanvasScreen, StellarPulseScreen )
+# SCREENS = (AuraCanvasScreen, )#StellarPulseScreen, )#DesktopNexusScreen, AuraCanvasScreen )
 """ 
     Determine the underlying hardware plaform - NB: Pi is assumed to use the KMS graphics driver 
     the loopback and roon zones are all configured by the user to match their system

@@ -221,7 +221,7 @@ class MetaData:
                 self._target_zone = target_zone['zone_id']
                 self._target_zone_name = target_zone.get('display_name', name)
                 self._metadata['display_name'] = self._target_zone_name
-                print(f"MetaData Info: Target zone '{self._target_zone_name}' set, id {self._target_zone}")
+                # print(f"MetaData Info: Target zone '{self._target_zone_name}' set, id {self._target_zone}")
         except Exception as e:
             print(f"MetaData Error setting target zone to {name}: {e}")
             self._target_zone_name = 'Unknown'
