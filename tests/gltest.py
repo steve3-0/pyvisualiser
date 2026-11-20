@@ -10,7 +10,6 @@ from pyvisualiser.visualisers.glvisualisers import *
 from pyvisualiser.styles.presets import *
 from pyvisualiser.styles.styles  import *
 from pyvisualiser.core.framecore  import Frame, RowFramer, ColFramer
-from pyvisualiser.core.glwrapper  import ShaderFrame
 from pyvisualiser.visualisers.metadata import CircularProgress, MetaDataFrame, PlayProgressFrame, TextFrame, MetaImages, MetaData
 from pyvisualiser.visualisers.spectrum import *
 

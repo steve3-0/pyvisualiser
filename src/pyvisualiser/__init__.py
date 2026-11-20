@@ -42,9 +42,19 @@ from .core.components import (
     Outline,
     FontCacheManager,
 )
+from .core.base_defs import (
+    Channel,
+    Orientation,
+    HorizontalAlign,
+    VerticalAlign,
+    ThemeColour,
+    MetadataKey,
+    RenderLayer,
+)
 from .core.framecore import Frame, ColFramer, RowFramer, ListNext, Colour, Cache, Smoother
 from .core.screenhandler import ScreenController, Platform, EventHandler, HWInterface
 from .core.render import RenderContext, RenderTarget, Compositor, RenderPass, BlurPass, CompositePass
+from .core.frame_config import FrameConfig  # Unified layout, hierarchy, and styling specification for any Frame
 
 # Visualiser Components
 from .visualisers.vumeters import VUFrame, VUMeter, VU2chFrame, VU2chHorzFrame, VUFlipFrame, VUMeterImageFrame
@@ -52,8 +62,8 @@ from .visualisers.metadata import MetaDataFrame, MetaData, MetaImages, PlayProgr
 from .visualisers.spectrum import SpectrumFrame, Spectrum, StereoSpectrumFrame, Diamondiser, Octaviser
 from .visualisers.oscillogramme import Oscilogramme, OscilogrammeBar, SamplesFrame
 from .visualisers.advanced_frames import EchoWaveFrame, KaleidoscopeFrame, PulseOrbFrame, SpectrumWaveFrame, FreqWaveFrame
-from .visualisers.glvisualisers import Kalidoscope, SpectrumMesh
-from .core.glwrapper import ShaderFrame, ShaderFrame, GLSLRenderPass
+from .visualisers.glvisualisers import ShaderFrame, Kalidoscope, SpectrumMesh
+from .core.glwrapper import GLSLFrame, GLSLRenderPass
 
 # Style System
 # Style System & Presets
@@ -187,4 +197,12 @@ __all__ = [
     "ProfileControls",
     "ProfileController",
     "get_version",
+    "Channel",
+    "Orientation",
+    "HorizontalAlign",
+    "VerticalAlign",
+    "ThemeColour",
+    "MetadataKey",
+    "RenderLayer",
+    "FrameConfig",
 ]

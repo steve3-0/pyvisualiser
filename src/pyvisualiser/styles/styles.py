@@ -112,16 +112,43 @@ Digital Bars & Spectrums
 
 """
 @dataclass(frozen=True)
+class MeterBallistics:
+    """Motion dynamics and temporal filtering for analogue & digital VU meters."""
+    decay_rate: float = 0.30          # Fractional decay per frame (0.01 to 0.99)
+    peak_decay_rate: float = 0.005    # Fall-off rate for floating peak markers
+    smoothing_samples: int = 10       # Moving average window size for needle inertia
+    peak_hold_frames: int = 30        # Frames to freeze peak before initiating decay
+    overshoot_damping: float = 0.85   # Damping factor for skeuomorphic needle bounce
+
+    def __post_init__(self):
+        if not (0.0 < self.decay_rate < 1.0):
+            raise ValueError(f"decay_rate must be between 0.0 and 1.0, got {self.decay_rate}")
+        if self.smoothing_samples < 1:
+            object.__setattr__(self, "smoothing_samples", 1)
+
+
+@dataclass(frozen=True)
+class FFTBallistics:
+    """Motion dynamics and temporal filtering for spectrum analysers."""
+    attack_rate: float = 0.90         # Rising responsiveness factor (0.0 to 1.0)
+    decay_rate: float = 0.25          # Falling decay rate per frame
+    peak_decay_rate: float = 0.02     # Floating peak marker decay rate
+    smoothing_factor: float = 0.50    # Temporal blending between consecutive FFT frames
+
+    def __post_init__(self):
+        if not (0.0 < self.decay_rate < 1.0):
+            raise ValueError(f"decay_rate must be between 0.0 and 1.0, got {self.decay_rate}")
+@dataclass(frozen=True)
 class BarEffects:
-    threshold: float = 0.75
+    threshold: float = 0.85
     scale: float = 2.5
     blur: float = 1.0
     alpha: int = 150
     attack: float = 0.4
-    decay: float = 0.1
+    decay: float = 0.3
     power: float = 2.0
     inner_glow_scale: float = 0.2
-    outer_glow_scale_min: float = 0.5
+    outer_glow_scale_min: float = 0.6
     outer_glow_scale_max: float = 0.5
     outer_glow_alpha_mult: float = 0.6
     outer_glow_blur_mult: float = 2.5
@@ -133,13 +160,13 @@ class BarStyle:
     led_gap: int = 4
     peak_h: int = 1
     right_offset: int = 0
-    flip: bool = False
+    flip: bool = False #  moves from top to bottom or bottom to top (false = bottom to top, true = top to bottom)
     radius: int = 0
-    orient: str = 'vert'
+    orient: str = 'vert' # orient: 'vert' or 'horz'
     tip: bool = False
     effects: BarEffects = BarEffects()
     edge_softness: float = 0.0
-    colour_mode: Optional[str] = 'horz'
+    colour_mode: Optional[str] = 'horz' # 'horz', 'vert', 'radial', 'none'
     segment_size: Optional[int] = None
     segment_gap: Optional[int] = None
     corner_radius: Optional[int] = None
@@ -158,6 +185,7 @@ class SpectrumStyle:
     barw_max: int = 50
     decay: int = 0.4
     flip: bool = False #plots highs on left, lows on right
+    bar_style: BarStyle = field(default_factory=BarStyle)
 
 """
 

@@ -16,7 +16,7 @@
 
 from    pyvisualiser.core.framecore  import Frame, RowFramer, ColFramer, get_asset_path, Smoother
 from    pyvisualiser.core.components import Line, Box, Image, Text
-from    pyvisualiser.core.glwrapper  import ShaderFrame
+from    pyvisualiser.visualisers.glvisualisers import ShaderFrame
 from    pyvisualiser.styles.presets import Centred
 
 class TextFrame(Frame):
@@ -50,19 +50,19 @@ class TextFrame(Frame):
         self.configure()
 
     def configure(self):
-
         # print("TextFrame.configure>", self.text, self.background_frame.background, self.geostr())
-
         self.textcomp      = Text(self, text=self.text, fontmax=self.font_size, reset=self.reset, colour=self.colour, wrap=self.wrap, justify=self.justify, z_order=self.z_order)
-        # self.textcomp      = Text(self, text=self.text, fontmax=self.h, reset=self.reset, colour_index=self.colour_index, wrap=self.wrap)
 
-    def update_screen(self, text=None, colour=None, fontmax=None):
+    def update_screen(self, text=None, colour=None, fontmax=None, audio=None, media=None):
+        if text is None and self.update_fn is not None:
+            try:
+                # Support update_fn accepting state or parameterless
+                text = self.update_fn(media)
+            except TypeError:
+                text = self.update_fn()
+        elif text is None:
+            text = self.text
 
-        if self.update_fn is not None: text = self.update_fn()
-
-        # print("TextFrame.update ", text, self.geostr())
-        # print("TextFrame.draw ", full, text, colour, full, self.geostr())
-        # self.draw_background(True) # clear whats there -- not needed for
         self.textcomp.draw(text=text, colour=colour, fontmax=fontmax)
         
     @property
@@ -104,25 +104,34 @@ class PlayProgressFrame(Frame):
         box = (self.barw, self.h) if self.orient == 'vert' else (self.w-self.text_width, self.barw)
         self.boxbar      = Box(self, align=('centre', 'middle'), theme=self.theme, box=box, radius=10)
 
-    def update_screen(self):
-        # check is parent has resized
-        box = (self.barw, self.h) if self.orient == 'vert' else (self.w-self.text_width, self.barw)
+    def update_screen(self, audio=None, media=None):
+        # 1. Resolve elapsed and remaining safely from media snapshot or fallback platform
+        if media is not None:
+            elapsed_str = f"  {media.format_elapsed()}"
+            remaining_str = f"{media.format_remaining()}  "
+            elapsed_pc = media.elapsed_pc
+        else:
+            dur = getattr(self.platform, "duration", 0.0) or 0.0
+            elap = getattr(self.platform, "elapsed", 0.0) or 0.0
+            rem = max(0.0, dur - elap)
+            elapsed_str = f"  {int(elap // 60)}:{int(elap % 60):02d}"
+            remaining_str = f"{int(rem // 60)}:{int(rem % 60):02d}  "
+            elapsed_pc = (elap / dur) if dur > 0 else 0.0
+
+        # 2. Resize box if needed
+        box = (self.barw, self.h) if self.orient == "vert" else (self.w - self.text_width, self.barw)
         if self.boxbar.wh != box:
             self.boxbar.resize(box)
 
-        elapsed   = f"  {int( self.platform.elapsed//60)}:{int( self.platform.elapsed %60):02d}"
-        remaining = f"{int( self.platform.remaining//60)}:{int(  self.platform.remaining%60):02d}  "
+        # 3. Draw progress bar geometry
+        hide_backline = -self.h / 2 if elapsed_pc * self.w > self.h / 2 else 0
+        self.boxbar.drawH(elapsed_pc, flip=True, colour_index="dark", offset=(hide_backline, 0))
+        self.boxbar.drawH(elapsed_pc, colour_index="light")
 
-        # if full or self.elapsed.new_content_available(elapsed):
-        # self.draw_background(True)
-        hide_backline = -self.h/2 if self.platform.elapsedpc*self.w > self.h/2 else 0 # offset by the radius, makes sure the very start is OK too
-        self.boxbar.drawH(self.platform.elapsedpc, flip=True, colour_index='dark', offset=(hide_backline,0))
-        self.boxbar.drawH(self.platform.elapsedpc, colour_index='light')
-        # Create the string representation
-
-        self.elapsed.draw(elapsed, colour='light')
-        self.remaining.draw(remaining, colour='light')
-        # print("PlayProgressFrame>", elapsed, remaining)
+        # 4. Draw labels
+        self.elapsed.draw(elapsed_str, colour="light")
+        self.remaining.draw(remaining_str, colour="light")
+        return True
  
 class CircularProgress(Frame):
     @property
@@ -139,11 +148,18 @@ class CircularProgress(Frame):
         self += ShaderFrame(self, shader='progressdial',colour=colour)
         self += TextFrame(self, text=start_text, colour='mid', align=Centred, update_fn=self.update_text, scalers=(0.7,0.7))
 
-    def update_text(self):
-        minutes = self.platform.duration//60
-        seconds = self.platform.duration%60
-        return f"{minutes:0.0f}:{seconds:02.0f}"
+    def update_text(self, media=None):
+        if media is not None:
+            duration = media.duration
+        else:
+            duration = getattr(self.platform, "duration", 0.0) or 0.0
 
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        return f"{minutes:d}:{seconds:02d}"
+
+    def update_screen(self, audio=None, media=None):
+        self.update_text(media)
 
 '''
 Control, Source & Quality metadata
@@ -153,29 +169,21 @@ Control, Source & Quality metadata
 '''
 
 class MetaData(TextFrame):
-    def __init__(self, parent, metadata_type='artist', justify=('centre','middle'),**kwargs): 
-    #colour='foreground', scalers=(1.0, 1.0), align=('centre','middle'),theme=None, same_size=True, outline=None,justify='centre'):
+    def __init__(self, parent, metadata_type="artist", justify=("centre", "middle"), **kwargs):
+        self.metadata_key = str(metadata_type)
 
-    
-        VALID_METADATA = {'track', 'album', 'artist', 'volume', 'source', 'sample_rate', 'format'}
+        def _resolver(media=None):
+            if media is not None:
+                return str(getattr(media, self.metadata_key, ""))
+            # Fallback to platform
+            return str(getattr(parent.platform, self.metadata_key, ""))
 
-        try:
-            if metadata_type in VALID_METADATA: 
-                # print(f"MetaData.update> Initializing metadata type '{metadata_type}', for parent '{parent.__class__.__name__}'")
-                # The lambda fetches the *current* value of the attribute whenever it is called
-                TextFrame.__init__(
-                    self, 
-                    parent, 
-                    update_fn=lambda *args: getattr(parent.platform, metadata_type), 
-                    justify=justify,  
-                    **kwargs
-                )
-            else:
-                raise ValueError(f"MetaData.update> Metadata type not known: {self.metadata_type}")
-        except Exception as e:
-            raise ValueError(f"MetaData.update> Error initializing metadata type '{metadata_type}': {e}")
-
-
+        super().__init__(
+            parent,
+            update_fn=_resolver,
+            justify=justify,
+            **kwargs
+        )
 class MetaDataFrame(Frame):
     SHOW = { 'track' : {'colour' : 'foreground', 'align': ('left','middle'), 'scalers': (1.0, 1.0)}, \
              'album' : {'colour' : 'mid',        'align': ('left','middle'), 'scalers': (1.0, 0.8)},  \
@@ -195,7 +203,16 @@ class MetaDataFrame(Frame):
         rows += MetaData(rows, 'artist', justify=self.justify, colour  = 'light') 
         rows += PlayProgressFrame(rows,background=None, outline=OUT)
 
+    def update_screen(self, audio=None, media=None):
+        self.draw_outline()
+        self.draw_background()
 
+        draw_list = sorted(self.frames, key=lambda x: getattr(x, "z_order", 0))
+        for f in draw_list:
+            f.draw_outline()
+            f.draw_background()
+            f.update_screen(audio=audio, media=media)
+        return True
 '''
 Image based meta data frames
 '''
@@ -218,9 +235,19 @@ class ArtFrame(Frame):
     def configure(self):    
         self.image_container = Image(self, opacity=self.opacity, reflection=self.reflection)  
 
-    def update_screen(self):
-         self.image_container.draw(self.update_fn())
+    def update_screen(self, audio=None, media=None):
+        art_ref = None
+        if media is not None:
+            if self.is_album:
+                art_ref = media.album_art
+            else:
+                art_ref = media.artist_art
+        
+        if art_ref is None and self.update_fn is not None:
+            art_ref = self.update_fn()
 
+        self.image_container.draw(art_ref)
+        return True
  
 
 class MetaImages(ArtFrame):

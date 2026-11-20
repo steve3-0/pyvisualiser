@@ -595,6 +595,11 @@ class Line(Frame):
         xy = self.anglexy(val, self.radius, amp_scale=amplitude, gain=gain)
         ab = self.anglexy(val, self.radius * (1 - tick_pc))
 
+        # print(f"[LINE TELEMETRY] val={val} | line_radius={self.radius} | "
+        #       f"min_offset={self.min_offset} | circle_scale={self.circle_scale} | "
+        #       f"xy={xy} | ab={ab}")
+
+
         frame_rect = self.abs_rect()
         frame_bottom = frame_rect[1] + frame_rect[3]
         
@@ -740,6 +745,7 @@ class Text:
     def update(self, text=None, fontmax=None):
         try:
             if text is None: text = self.text
+            
             current_wh = tuple(self.parent.abs_wh)
             current_fontmax = self.fontmax if fontmax is None else fontmax
 
@@ -902,6 +908,13 @@ class Text:
 
         xy = self.parent.anglexy(val, self.radius)
         w, h = self.textsize(text)
+
+        # print(f"[TEXT TELEMETRY] text='{text}' | val={val} | text_radius={self.radius} | "
+        #       f"parent_type={type(self.parent).__name__} | "
+        #       f"parent_centre={getattr(self.parent, 'centre', 'N/A')} | "
+        #       f"parent_min_offset={getattr(self.parent, 'min_offset', 'N/A')} | "
+        #       f"parent_circle_scale={getattr(self.parent, 'circle_scale', 'N/A')} | "
+        #       f"computed_xy={xy} | text_size=({w}, {h})")
 
         x = int(xy[0] - w / 2)
         y = int(xy[1] - h / 2)

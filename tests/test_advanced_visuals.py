@@ -27,7 +27,7 @@ class BarTest(Frame):
                  outline=None,square=False, update_fn=None, bar_style=None, barsize_pc=0.7):
 
         # 1. Capture all configuration parameters into self.config
-        self.config = {
+        self.cfg = {
             'channel': channel, \
             'bar_style': bar_style, \
             'update_fn':update_fn
@@ -37,14 +37,14 @@ class BarTest(Frame):
         self.configure()
 
     def configure(self):
-        bar_style = self.config['bar_style']
+        bar_style = self.cfg['bar_style']
         self.barw   = self.abs_w * self.barsize_pc if bar_style.orient == 'vert' else self.abs_h * self.barsize_pc   # width of the bar
         box         = (self.barw, self.h) if bar_style.orient == 'vert' else (self.w, self.barw)
         self.bar    = Bar(self, align=('centre', 'middle'), box_size=box, bar_style=bar_style)
 
-        self.level     = self.config['channel']
-        self.update_fn = self.config['update_fn']
-        # print("VUFrame._configure> box=%s, flip=%d, orient %s, frame> %s" % (box, self.config['flip'], self.config['orient'], self.geostr()))
+        self.level     = self.cfg['channel']
+        self.update_fn = self.cfg['update_fn']
+        # print("VUFrame._configure> box=%s, flip=%d, orient %s, frame> %s" % (box, self.cfg['flip'], self.cfg          ['orient'], self.geostr()))
 
     def update_screen(self):
 

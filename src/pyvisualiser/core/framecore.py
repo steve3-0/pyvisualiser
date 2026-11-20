@@ -541,45 +541,90 @@ class Frame(Geometry):
     """
 
 
-    def __init__(self, parent, scalers=FullScale, align=Centred, square=False, theme=None, background=None, outline=None, padding=0, z_order=0):
+    def __init__(
+        self,
+        parent,
+        scalers=None,
+        align=None,
+        square=False,
+        theme=None,
+        background=None,
+        outline=None,
+        padding=0,
+        z_order=0,
+        config=None,
+        **kwargs
+    ):
         """
-            scalars is a tuple (w%, h%) where % is of the bounds eg (0,0,64,32) is half the width, full height
-            align is a tuple (horizontal, vertical) - where horz is one of 'left', 'right', 'centre', vertical 'top', 'middle', 'bottom'
-            bounds is list of the bottom left and upper right corners eg (64,32)
-
-            NB: making outline = '' will draw frame outlines around all frames that do not have their own draw functions - useful for tweaking screen design
+        Initialise a Frame container.
+        
+        Preferred modern usage:
+            Frame(parent, config=FrameConfig(...))
+            
+        Legacy usage (supported until Phase 6 purge):
+            Frame(parent, scalers=(1.0, 1.0), align=('centre', 'middle'), ...)
         """
-        # print("Frame.__init__> startup>>>", type(self).__name__, align, scalers, theme, background)
+        from pyvisualiser.core.frame_config import FrameConfig
 
-        scalers         = FullScale          if scalers  is None else scalers
-        alignment       = Centred            if align    is None else align      
-        outline         = OutlineDefault     if outline  is None else outline
-
-        if isinstance(parent, Frame):
-            """ Sub-frame, so scale to the size of the parent Frame """
-            bounds          = parent.canvas_coords()
-            self.theme      = parent.theme      if theme    is None else theme           
-            self.platform   = parent.platform
-            # background      = parent.background_frame.background if parent.background_frame is not None and background is None else background
-            # print("Frame.__init__ subframe>", type(self).__name__, scalers, alignment, theme, bounds, "parent", type(parent).__name__, parent.theme, parent.geostr())
+        # 1. Resolve configuration (Bridge layer)
+        if config is not None:
+            if not isinstance(config, FrameConfig):
+                raise TypeError(f"config must be an instance of FrameConfig, got {type(config).__name__}")
+            resolved_config = config
         else:
-            """ Screen (aka top-level Frame), so scale to the boundary """
-            bounds          = parent.boundary
-            self.platform   = parent    #only needed by the top Frame or Screen, as is passed on draw()
-            self.theme      = PaletteDefault                if theme    is None else theme  
-            background      = BackgroundDefault           if background is None else background
+            # Construct FrameConfig from legacy arguments
+            scalers_val = FullScale if scalers is None else scalers
+            align_val = Centred if align is None else align
+            outline_val = OutlineDefault if outline is None else outline
+            resolved_config = FrameConfig(
+                scalers=scalers_val,
+                align=align_val,
+                square=square,
+                theme=theme,
+                background=background,
+                outline=outline_val,
+                padding=padding,
+                z_order=z_order,
+            )
 
-        self.frames         = []         #Holds the stack of containing frames
-        self.outline_frame  = self.platform.create_outline(self, outline)
-        self.z_order        = z_order
+        self.config = resolved_config
+        self.scalers = resolved_config.scalers
+        self.alignment = resolved_config.align
+        self.square = resolved_config.square
+        self.padding = resolved_config.padding
+        self.z_order = resolved_config.z_order
 
-        Geometry.__init__(self, bounds, self.platform.wh, scalers, alignment, square, self.outline_frame.w, padding)
+        # 2. Hierarchy & parent resolution
+        if isinstance(parent, Frame):
+            bounds = parent.canvas_coords()
+            self.theme = parent.theme if resolved_config.theme is None else resolved_config.theme
+            self.platform = parent.platform
+            resolved_background = resolved_config.background
+        else:
+            bounds = parent.boundary
+            self.platform = parent
+            self.theme = PaletteDefault if resolved_config.theme is None else resolved_config.theme
+            resolved_background = (
+                BackgroundDefault if resolved_config.background is None else resolved_config.background
+            )
 
-        self.colours                  = Colour(self.theme, self.w)
-        self.background_frame         = self.platform.create_background(self, background)
-        # if a frame has an opaque background then the parent background must update everytime the child refresh
+        self.frames = []
+        self.outline_frame = self.platform.create_outline(self, resolved_config.outline)
 
-        # print("Frame.__init__> done", self.background_frame.background, self.framestr())
+        # 3. Initialise Geometry base
+        Geometry.__init__(
+            self,
+            bounds,
+            self.platform.wh,
+            self.scalers,
+            self.alignment,
+            self.square,
+            self.outline_frame.w,
+            self.padding,
+        )
+
+        self.colours = Colour(self.theme, self.w)
+        self.background_frame = self.platform.create_background(self, resolved_background)
 
     def __iadd__(self, frame):
         self.frames.append(frame)
@@ -704,16 +749,18 @@ class AxisFramer(Frame):
     Generic axis-based framer.  
     Handles layout along a single axis (x for columns, y for rows).
     """
-    def __init__(self, parent, ratios=None, axis='x', padpc=0, **kwargs):
-        super().__init__(parent, **kwargs)
-        self.axis = axis  # 'x' for ColFramer, 'y' for RowFramer
-        self.padpc = 1-padpc
-        self.ratios = ratios
-        self._scalers = self._normalize(ratios) if ratios is not None else []
-        self.dynamic_scalers = []
-        self.frames = []
-        parent += self  # ensure parent tracks updates
-        # print(f"{self.__class__.__name__}.__init__> {self.axis}-axis ratios={self.ratios} {self.framestr()}")
+    def __init__(self, parent, ratios=None, axis='x', padpc=0, config=None, **kwargs):
+            if config is not None:
+                super().__init__(parent, config=config, **kwargs)
+            else:
+                super().__init__(parent, **kwargs)
+            self.axis = axis
+            self.padpc = 1 - padpc
+            self.ratios = ratios
+            self._scalers = self._normalize(ratios) if ratios is not None else []
+            self.dynamic_scalers = []
+            self.frames = []
+            parent += self
 
     def _normalize(self, values):
         """Normalize ratios to sum to 1.0"""
@@ -839,35 +886,38 @@ class ListNext:
 
 
 class Colour:
-    def __init__(self, theme, num_colours):
+    def __init__(self, theme, num_colours=256):
         self.theme      = theme                 # array of colour tuples that are blended together
         self.num_colours= num_colours           # size of array of colours to index
+        if isinstance(num_colours, float) and num_colours <= 1.0:
+            self.num_colours = 256
+        else:
+            self.num_colours = int(num_colours) if num_colours is not None else 256
         self.colours    = self.colourmap(theme) # lookup of a colour tuple from an index
         # print("Colour.__init__> theme", theme, self.num_colours )
 
     """
     Colour primitives
     """
+
     def colourmap(self, theme):
-        def rgb_to_hex(color_tuple):
-            return "#{:02x}{:02x}{:02x}".format(*color_tuple)
+        """
+        Generates an RGBA colour lookup table (LUT) via linear interpolation using pure NumPy.
+        Replaces matplotlib colormaps with a lightweight vectorized array generator.
+        """
+        raw_range = COLOUR_THEMES[theme]['range']
+        stops = np.linspace(0.0, 1.0, len(raw_range))
+        colors = np.array(raw_range, dtype=np.float32) # Shape: (N, 3) or (N, 4)
+        
+        query_indices = np.linspace(0.0, 1.0, self.num_colours + 1, dtype=np.float32)
+        
+        lut = np.zeros((self.num_colours + 1, colors.shape[1]), dtype=np.float32)
+        for i in range(colors.shape[1]):
+            lut[:, i] = np.interp(query_indices, stops, colors[:, i])
+            
+        # Convert to integer RGB/RGBA tuples
+        return [tuple(int(val) for val in row) for row in np.clip(lut, 0.0, 255.0)]
 
-        hex_colours = [rgb_to_hex(color) for color in COLOUR_THEMES[theme]['range']]
-        values = np.arange(0, self.num_colours+1)
-
-        # Normalize values to be in the range [0, 1]
-        norm = plt.Normalize(vmin=0, vmax=self.num_colours)
-
-        # Create a custom colormap ranging from green to amber to red
-        # cmap = mcolors.LinearSegmentedColormap.from_list('green_amber_red', ['#008000', '#FFD700', '#FF0000'])
-        cmap = mcolors.LinearSegmentedColormap.from_list('green_amber_red', hex_colours)
-        # Get colors corresponding to the normalized values
-        colors = cmap(norm(values))
-
-        # Convert RGBA values to tuples
-        color_tuples = [(int(r * 255), int(g * 255), int(b * 255)) for r, g, b, _ in colors]
-
-        return color_tuples
 
     def get_rgb(self, colour_index=None, flip=False):
         # depending what the index is look-up:
@@ -939,7 +989,8 @@ class Smoother:
                 inc  = len(self.smoother) - i
                 tot += inc
                 ave += v * inc
-            return ave / (tot*0.9)  # this increased teh amplitude as the smoothing damps the range for VUs
+            # return ave / (tot*0.9)  # this increased teh amplitude as the smoothing damps the range for VUs
+            return ave / (tot*1.0)  # this increased teh amplitude as the smoothing damps the range for VUs
 
     def __str__(self):
         return f"Smoother> max={self.FrameHeight}, size={self.size}, smoother={self.smoother}"  

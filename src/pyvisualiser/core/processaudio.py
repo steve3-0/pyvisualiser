@@ -210,8 +210,8 @@ class AudioAnalyser:
 
 class AudioData():
     def __init__(self):
-        data          = [0.5]*50
-        data_s        = np.arange(FRAMESIZE)
+        data          = np.ones(50, dtype=np.float32) * 0.5  # <--- Make it a NumPy array
+        data_s        = np.arange(FRAMESIZE, dtype=np.float32)
 
         self.vu       = {'left': 0.5, 'right':0.5, 'mono':0.5}
         self.peak     = {'left': 0.8, 'right':0.8, 'mono':0.8}

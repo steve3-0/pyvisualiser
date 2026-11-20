@@ -49,7 +49,7 @@ ALLSCREENS = ( MinSpectrumArt, TrackScreen, TrackSpectrumScreen, TrackSpectrumSc
 
 ART_SCREENS= (ArtistScreen, ImageTestScreen, ReflectionTestScreen)
 
-SPECTRUM_TEST_SCREENS= (StereoSpectrumLRScreen, FullSpectrumOffsetScreen, StereoSpectrumScreen, StereoSpectrumSplitScreen, \
+SPECTRUM_SCREENS= (StereoSpectrumLRScreen, FullSpectrumOffsetScreen, StereoSpectrumScreen, StereoSpectrumSplitScreen, \
                         MonoSpectrumScreen, MonoSpectrumLEDScreen, MixedLEDScreen)
 
 VU_TEST_SCREENS= (TrackVUMeterScreen2, VUImageScreen, VUScreen, VUVScreen, TestVUImageScreen1, TestVUImageScreen2, \

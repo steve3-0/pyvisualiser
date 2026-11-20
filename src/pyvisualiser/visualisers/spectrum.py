@@ -12,9 +12,14 @@
  v3.0 Baloothebear4 Dec 23 - Refactored for MacOS & DSI Display usage
 
 """
+from pyparsing import Optional
+
 from    pyvisualiser.core.framecore  import Frame, Smoother, RowFramer, ColFramer
+from    pyvisualiser.core.frame_config import FrameConfig
 from    pyvisualiser.core.components import Bar, Text, Line, Box, Image, ArcsOctaves, BarStyle, SpectrumStyle
 from    pyvisualiser.styles.presets  import PI, Centred
+from    pyvisualiser.styles.styles   import MeterBallistics
+from    pyvisualiser.styles.profiles import ProfileManager
 
 
 """
@@ -103,32 +108,34 @@ class SpectrumFrame(Frame, Spectrum):
     """
 
     def __init__(self, parent, channel, scalers=None, align=None, theme=None, flip=False, outline=None, square=False, \
-                 background=None, padding=0, bar_style=BarStyle(), spectrum_style=SpectrumStyle()):
+                 background=None, padding=0, 
+                 spectrum_style=SpectrumStyle(), config=None): #, ballistics: Optional[MeterBallistics] = None):
 
+        self.channel = str(channel)
+        # self.ballistics = ballistics
+
+        profile = ProfileManager.get_profile()
+        self.style = spectrum_style if spectrum_style is not None else profile.get_style('spectrum')
+        # if self.style is None:
+        #     self.style = SpectrumStyle()
+        
         # 1. Capture all configuration parameters into self.config
-        self.config = {
-            'channel': channel,
-            'scalers': scalers,
-            'align': align,
-            'theme': theme,
-            'bar_style': bar_style,
-            'spectrum_style': spectrum_style
-        }
+        # self.config = {
+        #     'channel': channel,
+        #     'scalers': scalers,
+        #     'align': align,
+        #     'theme': theme,
+        #     'bar_style': bar_style,
+        #     'spectrum_style': spectrum_style
+        # }
 
         
         # Assign primary attributes used outside of Frame's geometry calculation
-        self.channel        = self.config['channel']
+        # self.channel        = self.config['channel']
         # self.col_mode       = self.config['bar_style'].col_mode
 
         # 2. Call the parent Frame.__init__. This establishes self.w and self.h.
-        Frame.__init__(self, parent, 
-                         scalers=self.config['scalers'], 
-                         align=self.config['align'], 
-                         theme=self.config['theme'],
-                         outline=outline,
-                         background=background,
-                         square=square,
-                         padding=padding)
+        Frame.__init__(self, parent, config=config)
         
         # 4. Initialize the scene components via configure()
         self.configure()
@@ -144,20 +151,28 @@ class SpectrumFrame(Frame, Spectrum):
         cfg = self.config
         spectrum_w, spectrum_h = self.abs_wh
 
+
+        effective_ballistics = None #self.ballistics
+        if effective_ballistics is None:
+            effective_ballistics = MeterBallistics(
+                decay_rate=0.4,
+                smoothing_samples=10
+            )
+
         # 2. Re-initialize the Spectrum geometry (in case frame size changed)
         # Spectrum.__init__ should be safe to call multiple times if it just recalculates bar geometry
         Spectrum.__init__(self, spectrum_w, 
-                          barsize_pc=cfg['spectrum_style'].barsize_pc, 
-                          barw_min=cfg['spectrum_style'].barw_min, 
-                          barw_max=cfg['spectrum_style'].barw_max, 
-                          decay=cfg['spectrum_style'].decay)
+                          barsize_pc=self.style.barsize_pc, 
+                          barw_min=self.style.barw_min, 
+                          barw_max=self.style.barw_max, 
+                          decay=effective_ballistics.decay_rate)
         # The Spectrum init populates self.bars, self.barw, etc.
         
         # 3. Create the Bar object using the newly calculated dimensions
         # self.width, self.h are from Frame, self.barw is from Spectrum
         self.bar = Bar(self,
                        box_size=(self.width, spectrum_h), # Ensure width/h are correct
-                       bar_style=cfg['bar_style'])
+                       bar_style=self.style.bar_style)
 
         # print("SpectrumFrame.configure> w %s Spectrum setup: bars=%d, bar width=%d, gap=%d \n    Frame> %s" % (self.width, self.bars, self.barw, self.bar_gap, self.framestr()))
         # Note: Bar.__init__ must add the bar to self.frames of the SpectrumFrame parent.
@@ -176,7 +191,7 @@ class SpectrumFrame(Frame, Spectrum):
 
         self.read(self.channel)
 
-        if self.config['spectrum_style'].flip:
+        if self.style.flip:
             # reversed(list(enumerate(self.current))) gives you pairs of (original_index, value) 
             # starting from the end of the array.
             for i, item in enumerate(reversed(self.current)):
@@ -184,13 +199,13 @@ class SpectrumFrame(Frame, Spectrum):
                 
                 # We use 'i' for the x position and colour, 
                 # but 'item.smoothed()' and 'self.peaks' logic must align.
-                colour_index = x if self.config['bar_style'].colour_mode == 'horz' else None
+                colour_index = x if self.style.bar_style.colour_mode == 'horz' else None
                 
                 # Note: If self.peaks also needs to be flipped, use len(self.current) - 1 - i
                 peak_val = self.peaks[len(self.current) - 1 - i]
                 
                 self.bar.draw(
-                    x + self.config['bar_style'].right_offset, 
+                    x + self.style.bar_style.right_offset, 
                     item.smoothed(), 
                     self.barw, 
                     peak_val, 
@@ -200,8 +215,8 @@ class SpectrumFrame(Frame, Spectrum):
         else:
             for i in range(len(self.current)):
                 x = i * (self.barw + self.bar_gap)
-                colour_index = x if self.config['bar_style'].colour_mode == 'horz' else None
-                self.bar.draw( x+self.config['bar_style'].right_offset, self.current[i].smoothed(), self.barw, self.peaks[i], colour_index=colour_index)
+                colour_index = x if self.style.bar_style.colour_mode == 'horz' else None
+                self.bar.draw( x+self.style.bar_style.right_offset, self.current[i].smoothed(), self.barw, self.peaks[i], colour_index=colour_index)
                 # print("SpectrumFrame.update forwards> ", colour_index, self.config['bar_style'].colour_mode)
 
         
@@ -276,53 +291,61 @@ Spectrum Analyser Frames - variants on
     #                 led_h=5, led_gap=1, peak_h=1, radius=0, barsize_pc=0.5, barw_min=12, barw_max=20, tip=False, decay=DECAY):
 """
 
-class Spectrum2chFrame(Frame): #""" Vert split - L/R """
-    def __init__(self, parent, **kwargs) :
-        Frame.__init__(self, parent, outline={'width':4,'colour':'light'}, **kwargs)
 
-        rows = ColFramer(self, scalers=(0.7, 0.7), padding=10, outline={'width':4,'colour':'light'})
-        rows += SpectrumFrame(rows, 'left'  )
-        rows += SpectrumFrame(rows, 'right' )
         
 
 class SpectrumStereoFrame(Frame): #""" Horz Split screen - right flipped 'Apple Style' """
     # THis is vertically aligned, with one flipped
-    def __init__(self, parent, scalers, align) :
-        Frame.__init__(self, parent, scalers=scalers, align=align, background=None)
+    def __init__(self, parent, scalers=None, align=None, config=None) :
+        Frame.__init__(self, parent, scalers=scalers, align=align, config=config)
 
-        self += SpectrumFrame(self, 'right', scalers=(0.5, 1.0), align=('right','top'), bar_style=BarStyle(flip=False, led_gap=2, peak_h=0, radius=2,colour_mode='horz'), spectrum_style=SpectrumStyle(barw_min=10, barsize_pc=0.4), theme='rainbow', background=None)
-        self += SpectrumFrame(self, 'left', scalers=(0.5, 1.0), align=('left','top'), bar_style=BarStyle(flip=False, led_gap=2, peak_h=0, radius=2, colour_mode='horz'),spectrum_style=SpectrumStyle(barw_min=10, barsize_pc=0.4,flip=True), theme='rainbow', background=None)
-        
+        bar = BarStyle(flip=False, led_gap=2, peak_h=0, radius=2,colour_mode='vert')
+        col = ColFramer(self)
+
+        col += SpectrumFrame(col, 'left',  config=FrameConfig(theme='rainbow', background=None),
+                              spectrum_style=SpectrumStyle(barw_min=10, barsize_pc=0.4,flip=True, bar_style=bar) )
+        col += SpectrumFrame(col, 'right', config=FrameConfig(theme='rainbow', background=None),
+                               spectrum_style=SpectrumStyle(barw_min=10, barsize_pc=0.4, bar_style=bar)  )        
 
 class SpectrumStereoLRFrame(Frame): #""" Horz Split screen - LED Style right flipped  """
     # THis is vertically aligned, with one flipped
     def __init__(self, parent, scalers, align) :
         Frame.__init__(self, parent, scalers=scalers, align=align)
-
-        self += SpectrumFrame(self, 'right', scalers=(1.0, 0.5), align=('left','top'), bar_style=BarStyle(flip=True, led_gap=1, peak_h=1, radius=2), spectrum_style=SpectrumStyle(barw_min=12), theme='white' )
-        self += SpectrumFrame(self, 'left', scalers=(1.0, 0.5), align=('left','bottom'), bar_style=BarStyle(flip=False, led_gap=1, peak_h=1, radius=2), spectrum_style=SpectrumStyle(barw_min=12), theme='red' )
+        bar=BarStyle(flip=True, led_gap=1, peak_h=1, radius=2)
+        self += SpectrumFrame(self, 'right', config=FrameConfig(scalers=(1.0, 0.5), align=('left','top')    ), spectrum_style=SpectrumStyle(barw_min=12, bar_style=bar), theme='white' )
+        self += SpectrumFrame(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('left','bottom')) , spectrum_style=SpectrumStyle(barw_min=12, bar_style=bar), theme='red' )
         
 
 class SpectrumStereoSplitFrame(Frame): #""" Horz Split screen - right flipped """
     # This is vertically aligned
-    def __init__(self, parent, scalers, align) :
-        Frame.__init__(self, parent, scalers=scalers, align=align, background={'colour':'background', 'per_frame_update':True})
-        self += SpectrumFrame(self, 'right', scalers=(1.0, 0.5), align=('left','bottom'), bar_style=BarStyle(led_gap=0, flip=True, tip=True), spectrum_style=SpectrumStyle(barw_min=5, barsize_pc=0.5) )
-        self += SpectrumFrame(self, 'left', scalers=(1.0, 0.5), align=('left','top'), bar_style=BarStyle(led_gap=0, tip=True), spectrum_style=SpectrumStyle(barw_min=5, barsize_pc=0.5) )
+    def __init__(self, parent, scalers=None, align=None, config=None) :
+        Frame.__init__(self, parent, config=config,scalers=scalers, align=align)
+        rows = RowFramer(self)
+        bar_style=BarStyle(led_gap=0, flip=False, tip=True)
+        rows += SpectrumFrame(rows, 'right', config=FrameConfig(scalers=(1.0, 0.5), align=('left','top')    ), spectrum_style=SpectrumStyle(barw_min=5, barsize_pc=0.5, bar_style=bar_style) )
+        bar_style=BarStyle(led_gap=0, flip=True, tip=True)
+        rows += SpectrumFrame(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('left','bottom')) ,  spectrum_style=SpectrumStyle(barw_min=5, barsize_pc=0.5, bar_style=bar_style) )
         
 
 class SpectrumStereoOffsetFrame(Frame):
-    def __init__(self, parent, scalers, align) :
-        Frame.__init__(self, parent, scalers=scalers, align=align,background={'colour':'background', 'per_frame_update':True})
-        self += SpectrumFrame(self, 'right', scalers=(1.0, 1.0), align=('left','top'),  bar_style=BarStyle(led_gap=0, tip=True,right_offset=2,), spectrum_style=SpectrumStyle(barw_min=8, barsize_pc=1.5), theme='red', background=None)
-        self += SpectrumFrame(self, 'left', scalers=(1.0, 1.0), align=('left','bottom'), bar_style=BarStyle(led_gap=0, tip=True), spectrum_style=SpectrumStyle(barw_min=8, barsize_pc=1.5), theme='blue',background=None )
+    def __init__(self, parent, config=None,scalers=None, align=None) :
+        Frame.__init__(self, parent, config=config, scalers=scalers, align=align)
+        self += SpectrumFrame(self, 'right', config=FrameConfig(scalers=(1.0, 1.0), align=('left','top'), theme='red', background=None),   
+                              spectrum_style=SpectrumStyle(barw_min=8, barsize_pc=1.5, 
+                                    bar_style=BarStyle(led_gap=0, tip=True,right_offset=2,),))
+        self += SpectrumFrame(self, 'left', config=FrameConfig(scalers=(1.0, 1.0), align=('left','bottom'),theme='blue',background=None), 
+                              spectrum_style=SpectrumStyle(barw_min=8, barsize_pc=1.5, bar_style=BarStyle(led_gap=0, tip=True) )  )
 
 
 class StereoSpectrumFrame(Frame):
     def __init__(self, parent, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self += SpectrumFrame(self,  'right', scalers=(1.0, 0.5), align=('left','top'), spectrum_style=SpectrumStyle(barw_min=15, barsize_pc=0.5,), bar_style=BarStyle(led_gap=5, peak_h=3, radius=0,  ), **kwargs)
-        self += SpectrumFrame(self,  'left', scalers=(1.0, 0.5), align=('left','bottom'), spectrum_style=SpectrumStyle(barw_min=15, barsize_pc=0.5), bar_style=BarStyle(led_gap=5, peak_h=3, radius=0), **kwargs )
+        self += SpectrumFrame(self,  'right', config=FrameConfig(scalers=(1.0, 0.5), align=('left','top')), 
+                              spectrum_style=SpectrumStyle(barw_min=15, barsize_pc=0.5, 
+                              bar_style=BarStyle(led_gap=5, peak_h=3, radius=0 )), **kwargs)
+        self += SpectrumFrame(self,  'left', config=FrameConfig(scalers=(1.0, 0.5), align=('left','bottom')) , 
+                              spectrum_style=SpectrumStyle(barw_min=15, barsize_pc=0.5, 
+                              bar_style=BarStyle(led_gap=5, peak_h=3, radius=0)), **kwargs )
 
 

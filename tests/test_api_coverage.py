@@ -57,9 +57,10 @@ class APICoverageScreen(Frame):
                       bar_style=BarStyle(segment_size=8, segment_gap=2, corner_radius=3, edge_softness=0.1))
         
         # 2. SpectrumFrame: Test bar settings, peak_h
-        r2 += SpectrumFrame(r2, channel='mono', bar_style=BarStyle(led_h=3, led_gap=1, effects=BarEffects(threshold=0.5, scale=3.0, blur=2.0, alpha=150),
-                            peak_h=2, decay=0.3), background=BackgroundStyle(colour='dark', colour_opacity=200),
-                            spectrum_style=SpectrumStyle(barsize_pc=0.2, barw_min=5),
+        r2 += SpectrumFrame(r2, channel='mono', 
+                            background=BackgroundStyle(colour='dark', colour_opacity=200),
+                            spectrum_style=SpectrumStyle(barsize_pc=0.2, barw_min=5, decay=0.3,bar_style=BarStyle(led_h=3, led_gap=1, peak_h=2, 
+                                                                           effects=BarEffects(threshold=0.5, scale=3.0, blur=2.0, alpha=150)))
                             )
         
         # 3. Diamondiser: Test circular spectrum
@@ -69,14 +70,16 @@ class APICoverageScreen(Frame):
         r3 = ColFramer(rows, col_ratios=(1, 1, 1), padding=10)
         
         # 1. VUMeter: Test dial parameters
-        r3 += VUMeter(r3, channel='mono', pivot=-0.2, endstops=(-PI/4, 3*PI/4), 
+        r3 += VUMeter(r3, channel='mono', 
+                      style=VUMeterStyle(pivot=-0.2, endstops=(-PI/4, 3*PI/4)), 
                       background={'colour':'light', 'opacity':50}, outline={'colour':'alert', 'width':1})
+
         
         # 2. Oscilogramme: Test waveform
         r3 += Oscilogramme(r3, channel='left', background='background')
         
         # 3. Z-Order Test: Overlapping frames
-        z_test = Frame(r3, background='dark', outline={'colour':'foreground', 'width':1})
+        z_test = Frame(r3, background='mid', outline={'colour':'foreground', 'width':1})
         # Background text (z=0)
         z_test += TextFrame(z_test, text="Background\n(z=0)", z_order=0, 
                             scalers=(1.0, 1.0), align=('centre', 'middle'), colour='mid')
@@ -109,9 +112,9 @@ class LEDtestScreen(Frame):
         col = ColFramer(self, padding=0, col_ratios=(10,6), padpc=0.0)
 
         bars = BarStyle(led_gap=5, peak_h=3,radius=0, tip=False,effects=NeonGlow,)
-        spectrum = SpectrumStyle(barw_min=19, barsize_pc=0.1, decay=0.2)
+        spectrum = SpectrumStyle(barw_min=19, barsize_pc=0.1, decay=0.2, bar_style=bars)
         # intensity_threshold=0.3, intensity_scale=1.2, intensity_alpha=200,intensity_blur=1.5
-        col += SpectrumFrame(col,  'mono',  bar_style=bars, spectrum_style=spectrum)
+        col += SpectrumFrame(col,  'mono',  spectrum_style=spectrum)
         # intensity_threshold=0.8, intensity_scale=1.5, intensity_alpha=200,intensity_blur=1.5)
         col += VUFrame(col, 'mono', barsize_pc=1.0, bar_style=BarStyle(orient='vert', led_h=20, led_gap=2, tip=False,effects=NeonGlow))
 
