@@ -13,64 +13,10 @@ from    pyvisualiser.core.state      import AudioSnapshot
 from    pyvisualiser.styles.presets  import Centred, PI
 from    pyvisualiser.styles.styles   import *
 from    pyvisualiser.styles.profiles import ProfileManager
+from    pyvisualiser.styles.ballistics import MeterBallistics
 from    pyvisualiser.visualisers.metadata   import TextFrame
-import  math
 
 
-def compute_safe_meter_radius(
-    box_w: float,
-    box_h: float,
-    pivot_y_normalized: float,
-    endstops: tuple[float, float],
-    margin_px: float = 6.0,
-    font_height_px: float = 12.0,
-    needle_length_factor: float = 0.85
-) -> tuple[float, float, float]:
-    """
-    Computes the maximum safe needle radius by enforcing that for all angles theta
-    in [theta_min, theta_max], the needle tip (cx + R*sin(theta), pivot_y - R*cos(theta))
-    lies strictly inside [margin_px, box_w - margin_px] x [margin_px, box_h - margin_px].
-    """
-    theta_min, theta_max = endstops
-    cx = box_w * 0.5
-    # Pivot Y in screen space (pivot is negative offset below box_h)
-    pivot_y = box_h + (abs(pivot_y_normalized) * box_h)
-
-    min_x = margin_px
-    max_x = box_w - margin_px
-    min_y = margin_px
-    max_y = box_h - margin_px
-
-    # Sample sweep angles densely
-    steps = 64
-    angles = [theta_min + i * (theta_max - theta_min) / steps for i in range(steps + 1)]
-
-    max_r = min(box_w, box_h) * 5.0
-
-    for theta in angles:
-        sin_t = math.sin(theta)
-        cos_t = math.cos(theta)
-
-        # Bound X: min_x <= cx + R * sin_t <= max_x
-        if abs(sin_t) > 1e-6:
-            if sin_t > 0:
-                r_x = (max_x - cx) / sin_t
-            else:
-                r_x = (min_x - cx) / sin_t
-            if r_x > 0: max_r = min(max_r, r_x)
-
-        # Bound Y: min_y <= pivot_y - R * cos_t <= max_y
-        if abs(cos_t) > 1e-6:
-            if cos_t > 0:
-                # cos_t > 0 means pivot_y - R * cos_t moves UP (smaller Y)
-                r_y = (pivot_y - min_y) / cos_t
-            else:
-                # cos_t < 0 means pivot_y - R * cos_t moves DOWN (larger Y)
-                r_y = (max_y - pivot_y) / (-cos_t)
-            if r_y > 0: max_r = min(max_r, r_y)
-
-    safe_radius = max_r * needle_length_factor
-    return safe_radius, cx, pivot_y
 class VU:
     """Calculates instantaneous audio level, smoothed ballistics, and floating peaks."""
 
@@ -85,7 +31,6 @@ class VU:
         self.platform = platform
         self.channel = str(channel)
 
-        # 1. Resolve ballistics (Bridge layer)
         if ballistics is not None:
             self.ballistics = ballistics
         else:
@@ -110,8 +55,8 @@ class VU:
 
         smoothed_val = self.current.smoothed()
 
-        # Rising response (instantaneous audio tracking with inertia)
-        if target_height > smoothed_val:
+        # 1. Rising or sustained signal tracking
+        if target_height >= smoothed_val:
             self.current.add(target_height)
         else:
             # Falling response (exponential decay)
@@ -123,22 +68,21 @@ class VU:
 
         height = self.current.smoothed()
 
-        # Peak hold logic
-        if height > self.peaks:
+        # 2. Peak hold tracking: keep hold counter fully charged on sustained peaks
+        if height >= self.peaks:
             self.peaks = height
             self.peak_hold_counter = self.ballistics.peak_hold_frames
         else:
+            # Fall-off phase: count down hold window before releasing peak
             if self.peak_hold_counter > 0:
                 self.peak_hold_counter -= 1
             else:
                 self.peaks *= (1.0 - self.ballistics.peak_decay_rate)
 
-        # Clear peak if signal drops near zero
         if height < (self.ballistics.decay_rate / 3.0):
             self.peaks = 0.0
 
         return height, self.peaks
-
 
 """
 Analogue VU Meter frames
@@ -208,23 +152,6 @@ class VUMeter(Frame):
         # Always set the pivot scale for the frame so abs_centre() is correct for the pivot cover
         radius = self.abs_h * (0.5 - style.pivot)
         self.anglescale(radius, style.endstops, style.pivot)
-        # Compute safe radius with needle factor considered
-
-        # *** Part of task_3_1 but this fails ***
-        # font_h_px = self.abs_h * (style.scale.font_height if style.scale else 0.05)
-        # needle_factor = style.needle.length if (style.needle and style.needle.length) else 0.85
-
-        # safe_radius, _, _ = compute_safe_meter_radius(
-        #     box_w=self.abs_w,
-        #     box_h=self.abs_h,
-        #     pivot_y_normalized=style.pivot,
-        #     endstops=style.endstops,
-        #     margin_px=self.outline_w + self.padding + 4.0,
-        #     font_height_px=font_h_px,
-        #     needle_length_factor=needle_factor
-        # )
-        # radius = safe_radius
-        # self.anglescale(radius, style.endstops, style.pivot)
 
         # --- Background Setup (Image or Vector) ---
         if style.texture_path is not None:

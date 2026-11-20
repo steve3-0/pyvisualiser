@@ -104,6 +104,7 @@ from .styles.presets import (
     Centred,
 )
 from .styles.profiles import ProfileManager, ProfileControls, ProfileController
+from .styles.ballistics import MeterBallistics, FFTBallistics
 
 
 def get_version() -> str:
@@ -205,4 +206,6 @@ __all__ = [
     "MetadataKey",
     "RenderLayer",
     "FrameConfig",
+    "MeterBallistics", 
+    "FFTBallistics"
 ]

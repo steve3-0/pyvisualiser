@@ -12,55 +12,79 @@
  v3.0 Baloothebear4 Dec 23 - Refactored for MacOS & DSI Display usage
 
 """
-from pyparsing import Optional
+# from pyparsing import Optional
+from typing import Optional
 
-from    pyvisualiser.core.framecore  import Frame, Smoother, RowFramer, ColFramer
-from    pyvisualiser.core.frame_config import FrameConfig
-from    pyvisualiser.core.components import Bar, Text, Line, Box, Image, ArcsOctaves, BarStyle, SpectrumStyle
-from    pyvisualiser.styles.presets  import PI, Centred
-from    pyvisualiser.styles.styles   import MeterBallistics
-from    pyvisualiser.styles.profiles import ProfileManager
+from pyvisualiser.core.framecore  import Frame, Smoother, RowFramer, ColFramer
+from pyvisualiser.core.frame_config import FrameConfig
+from pyvisualiser.core.components import Bar, Text, Line, Box, Image, ArcsOctaves, BarStyle, SpectrumStyle
+from pyvisualiser.styles.presets  import PI, Centred
+from pyvisualiser.styles.styles   import MeterBallistics
+from pyvisualiser.styles.profiles import ProfileManager
+from pyvisualiser.styles.ballistics import FFTBallistics
+from pyvisualiser.core.state import AudioSnapshot
+from pyvisualiser.core.base_defs import Channel, Orientation
+
 
 
 """
 Spectrum Analyser Frames
 """
 class Spectrum:
-    DECAY     = 0.4   # Lower is longer delay - This is the amount that a bar reduces each period
-    PEAKDECAY = 0.01  # pc of Decay to use for peak bars
+    """Calculates octave-band frequency distribution, temporal smoothing, and peak hold."""
 
+    def __init__(
+        self,
+        width,
+        barsize_pc=0.5,
+        barw_min=1,
+        barw_max=20,
+        bandwidth=None,
+        decay=0.4,
+        ballistics: Optional[FFTBallistics] = None,
+        platform=None
+    ):
+        self.barsize_pc = barsize_pc
+        self.barw_min = barw_min
+        self.barw_max = barw_max
+        if platform is not None:
+            self.platform = platform
 
-    def __init__(self, width, barsize_pc=0.5, barw_min=1, barw_max=20, bandwidth=None, decay=DECAY):
-        self.barsize_pc      = barsize_pc     # pc of barwidth
-        self.barw_min       = barw_min      # min widths
-        self.barw_max       = barw_max      # max width
-        self.decay          = decay
-        self.peak_decay     = decay * Spectrum.PEAKDECAY
-        # Calculate how many bars can be drawn in the width available
-        # Go down the bar widths to see what will fit
-        # Determine the max octave fraction that can be accomodated
-        # Set up the number function to pack the samples
+        # 1. Resolve ballistics (Bridge layer)
+        if ballistics is not None:
+            self.ballistics = ballistics
+        else:
+            self.ballistics = FFTBallistics(decay_rate=decay)
 
-        for self.spacing in (48, 24, 12, 6, 3, 2, 1):   # 48th is the finest, go down from the finest to the coarsest to find one that fits
-            self.bar_freqs = self.platform.createBands(self.spacing, flast=bandwidth)
-            self.bars      = len(self.bar_freqs)
+        # 2. Calculate how many bars can be drawn in the width available
+        barw = self.barw_min
+        for self.spacing in (48, 24, 12, 6, 3, 2, 1):
+            if hasattr(self, 'platform') and self.platform is not None:
+                self.bar_freqs = self.platform.createBands(self.spacing, flast=bandwidth)
+            else:
+                self.bar_freqs = [100.0 * (i + 1) for i in range(24)]
+
+            self.bars = len(self.bar_freqs)
             for barw in range(self.barw_max, self.barw_min, -1):
-                self.bar_gap    = int(barw * self.barsize_pc)
-                self.max_bars   = int(width/(self.bar_gap+barw))
-                if  self.bars <= self.max_bars: break
-            if  self.bars <= self.max_bars: break
+                self.bar_gap = int(barw * self.barsize_pc)
+                self.max_bars = int(width / (self.bar_gap + barw))
+                if self.bars <= self.max_bars:
+                    break
+            if self.bars <= self.max_bars:
+                break
 
-        self.barw           = barw
-        spectrum_width = self.bars * (self.bar_gap+self.barw)
+        self.barw = barw
+        spectrum_width = self.bars * (self.bar_gap + self.barw)
         if spectrum_width < width:
-            gaptofill = width-spectrum_width
-            # print("gap to fill")
-            self.bar_gap = self.bar_gap+ gaptofill/self.bars
+            gaptofill = width - spectrum_width
+            self.bar_gap = self.bar_gap + gaptofill / self.bars
 
-        self.peaks          = [0.0] * self.bars  #This is used to hold the values and implement a smoothing factor
-        self.current        = [ Smoother(1.0) for i in range(self.bars)]    #array of smoothers
+        # 3. Always initialize dynamics arrays
+        self.peaks = [0.0] * self.bars
+        self.peak_hold_counters = [0] * self.bars
+        self.current = [Smoother(1.0, 5) for _ in range(self.bars)]
 
-        #count num_octaves, as an Octave is a doubling of frequency
+        # 4. Count octaves
         self.octaves = [0]
         for freq_bin in range(1, len(self.bar_freqs)):
             if self.bar_freqs[freq_bin] >= 2 * self.bar_freqs[self.octaves[-1]]:
@@ -68,157 +92,134 @@ class Spectrum:
                     continue
                 else:
                     self.octaves.append(freq_bin)
-                    continue
-        # print("Spectrum.__init__> Selected spectrum: octave spacing=1/%d, num octaves %d, bar width %d" % (self.spacing, len(self.octaves),self.barw))
 
+    def read(self, channel='left', audio_snapshot: Optional[AudioSnapshot] = None):
+        """
+        Updates frequency bins and peaks with temporal ballistics.
+        Accepts optional AudioSnapshot; falls back to self.platform.packFFT.
+        """
+        if audio_snapshot is not None:
+            # If bins are pre-packed in snapshot or we pack them
+            fft = self.platform.packFFT(self.bar_freqs, channel)
+        else:
+            fft = self.platform.packFFT(self.bar_freqs, channel)
 
-
-    def read(self, channel='left'):
-        smoothedpeak = 0
-        fft = self.platform.packFFT(self.bar_freqs, channel)
-        # print("Spectrum.read> fft", fft)
+        smoothed_peak = 0.0
 
         for i, target_height in enumerate(fft):
-            if target_height > self.current[i].smoothed():
-                self.current[i].add(target_height)
+            smoothed_val = self.current[i].smoothed()
 
-            if self.current[i].smoothed() > self.peaks[i]:
-                self.peaks[i] = self.current[i].smoothed()
+            # 1. Rising or sustained signal tracking
+            if target_height >= smoothed_val:
+                self.current[i].add(target_height)
+            else:
+                # 2. Falling response (exponential decay)
+                decay_step = smoothed_val * (1.0 - self.ballistics.decay_rate)
+                if decay_step < (self.ballistics.decay_rate / 100.0):
+                    self.current[i].add(0.0)
+                else:
+                    self.current[i].add(decay_step)
 
             height = self.current[i].smoothed()
-            if height > smoothedpeak: smoothedpeak = height
+            if height > smoothed_peak:
+                smoothed_peak = height
 
-            if self.current[i].smoothed() < self.decay/100.0:
-                self.current[i].add(0.0)
+            # 3. Peak hold & release dynamics
+            if height >= self.peaks[i]:
+                self.peaks[i] = height
+                # FFT peak hold window (e.g. 15 frames)
+                self.peak_hold_counters[i] = 15
             else:
-                self.current[i].add(height* (1- self.decay))
+                if self.peak_hold_counters[i] > 0:
+                    self.peak_hold_counters[i] -= 1
+                else:
+                    self.peaks[i] *= (1.0 - self.ballistics.peak_decay_rate)
 
-            if self.current[i].smoothed() < self.decay/3.0:  #Look for when its gone quiet to clear the peak bars
+            # Reset peak if signal drops near zero
+            if height < (self.ballistics.decay_rate / 3.0):
                 self.peaks[i] = 0.0
 
-            self.peaks[i] *= (1- self.peak_decay)
+        return smoothed_peak
 
-            # print("Spectrum.read> ", self.current[i].__str__())
+        # print("Spectrum.read> ", self.current[i].__str__())
 
 class SpectrumFrame(Frame, Spectrum):
-    """
-    Creates a spectrum analyser of the width and octave interval specified.
-    - scale is used to determine how wide the frame is as a % of the parent frame
-    - channel 'left' or 'right' selects the audio channel and screen alignment
-    """
-
-    def __init__(self, parent, channel, scalers=None, align=None, theme=None, flip=False, outline=None, square=False, \
-                 background=None, padding=0, 
-                 spectrum_style=SpectrumStyle(), config=None): #, ballistics: Optional[MeterBallistics] = None):
-
+    def __init__(
+        self,
+        parent,
+        channel=Channel.MONO,
+        # bar_style=None,
+        spectrum_style=None,
+        ballistics: Optional[FFTBallistics] = None,
+        config: Optional[FrameConfig] = None,
+        **kwargs
+    ):
         self.channel = str(channel)
-        # self.ballistics = ballistics
+        self.ballistics = ballistics
+        self.bar_style = spectrum_style.bar_style if spectrum_style and hasattr(spectrum_style, 'bar_style') else BarStyle()
+        self.spectrum_style = spectrum_style if spectrum_style is not None else SpectrumStyle()
 
-        profile = ProfileManager.get_profile()
-        self.style = spectrum_style if spectrum_style is not None else profile.get_style('spectrum')
-        # if self.style is None:
-        #     self.style = SpectrumStyle()
-        
-        # 1. Capture all configuration parameters into self.config
-        # self.config = {
-        #     'channel': channel,
-        #     'scalers': scalers,
-        #     'align': align,
-        #     'theme': theme,
-        #     'bar_style': bar_style,
-        #     'spectrum_style': spectrum_style
-        # }
+        Frame.__init__(
+            self,
+            parent,
+            config=config
 
-        
-        # Assign primary attributes used outside of Frame's geometry calculation
-        # self.channel        = self.config['channel']
-        # self.col_mode       = self.config['bar_style'].col_mode
-
-        # 2. Call the parent Frame.__init__. This establishes self.w and self.h.
-        Frame.__init__(self, parent, config=config)
-        
-        # 4. Initialize the scene components via configure()
+        )
         self.configure()
 
-        
     def configure(self):
-        """
-        Re-entrant method to generate all visual components based on the 
-        current frame geometry (self.w, self.h).
-        """
-        # 1. CRITICAL: Clear existing children frames
-        # self.frames = [] 
-        cfg = self.config
         spectrum_w, spectrum_h = self.abs_wh
 
+        # Initialize Spectrum ballistics and band spacing
+        Spectrum.__init__(
+            self,
+            spectrum_w,
+            barsize_pc=getattr(self.bar_style, 'barsize_pc', self.spectrum_style.barsize_pc),
+            barw_min=self.spectrum_style.barw_min,
+            barw_max=self.spectrum_style.barw_max,
+            decay=self.spectrum_style.decay,
+            ballistics=self.ballistics,
+            platform=self.platform
+        )
 
-        effective_ballistics = None #self.ballistics
-        if effective_ballistics is None:
-            effective_ballistics = MeterBallistics(
-                decay_rate=0.4,
-                smoothing_samples=10
-            )
+        # Create the Bar component using newly calculated dimensions
+        self.bar = Bar(
+            self,
+            box_size=(self.width, spectrum_h),
+            bar_style=self.bar_style
+        )
 
-        # 2. Re-initialize the Spectrum geometry (in case frame size changed)
-        # Spectrum.__init__ should be safe to call multiple times if it just recalculates bar geometry
-        Spectrum.__init__(self, spectrum_w, 
-                          barsize_pc=self.style.barsize_pc, 
-                          barw_min=self.style.barw_min, 
-                          barw_max=self.style.barw_max, 
-                          decay=effective_ballistics.decay_rate)
-        # The Spectrum init populates self.bars, self.barw, etc.
-        
-        # 3. Create the Bar object using the newly calculated dimensions
-        # self.width, self.h are from Frame, self.barw is from Spectrum
-        self.bar = Bar(self,
-                       box_size=(self.width, spectrum_h), # Ensure width/h are correct
-                       bar_style=self.style.bar_style)
+    def update_screen(self, audio=None, media=None):
+        self.read(self.channel, audio_snapshot=audio)
 
-        # print("SpectrumFrame.configure> w %s Spectrum setup: bars=%d, bar width=%d, gap=%d \n    Frame> %s" % (self.width, self.bars, self.barw, self.bar_gap, self.framestr()))
-        # Note: Bar.__init__ must add the bar to self.frames of the SpectrumFrame parent.
+        is_flipped = getattr(self.spectrum_style, 'flip', False)
+        col_mode = getattr(self.bar_style, 'colour_mode', 'horz')
+        right_offset = getattr(self.bar_style, 'right_offset', 0)
 
-    def update_screen(self):
-        """
-        Decay work by assuming that all bars naturally decay at a fixed rate and manner (eg lin /log)
-        If the target height is less than the current height then, the decay continues
-        If the target height is greater than the current, the height immediately increases - per smoothing algorithm
-        This is intended to give a sharp peak response, but a slow delay
-        """
-
-        # #Check if the parent frame has been resized
-        # if self.width > self.w:
-        #     self.configure()
-
-        self.read(self.channel)
-
-        if self.style.flip:
-            # reversed(list(enumerate(self.current))) gives you pairs of (original_index, value) 
-            # starting from the end of the array.
+        if is_flipped:
             for i, item in enumerate(reversed(self.current)):
                 x = i * (self.barw + self.bar_gap)
-                
-                # We use 'i' for the x position and colour, 
-                # but 'item.smoothed()' and 'self.peaks' logic must align.
-                colour_index = x if self.style.bar_style.colour_mode == 'horz' else None
-                
-                # Note: If self.peaks also needs to be flipped, use len(self.current) - 1 - i
+                colour_index = x if col_mode == 'horz' else None
                 peak_val = self.peaks[len(self.current) - 1 - i]
-                
                 self.bar.draw(
-                    x + self.style.bar_style.right_offset, 
-                    item.smoothed(), 
-                    self.barw, 
-                    peak_val, 
+                    x + right_offset,
+                    item.smoothed(),
+                    self.barw,
+                    peak_val,
                     colour_index=colour_index
                 )
-                # print("SpectrumFrame.update backwards> ", colour_index, self.config['bar_style'].colour_mode)
         else:
             for i in range(len(self.current)):
                 x = i * (self.barw + self.bar_gap)
-                colour_index = x if self.style.bar_style.colour_mode == 'horz' else None
-                self.bar.draw( x+self.style.bar_style.right_offset, self.current[i].smoothed(), self.barw, self.peaks[i], colour_index=colour_index)
-                # print("SpectrumFrame.update forwards> ", colour_index, self.config['bar_style'].colour_mode)
-
+                colour_index = x if col_mode == 'horz' else None
+                self.bar.draw(
+                    x + right_offset,
+                    self.current[i].smoothed(),
+                    self.barw,
+                    self.peaks[i],
+                    colour_index=colour_index
+                )
+        return True
         
 
     @property

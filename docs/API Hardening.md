@@ -265,46 +265,299 @@ Below is the modular punchlist. Each task is self-contained, specifies exact tar
 
 *Awaiting your review and authorization to proceed with Task 1.1.*
 
-### Architectural Roadmap: When & How We Execute the Mass Cleanup
+Refactored Plan:
 
-You are spot on: **transitional shims are temporary safety nets, not permanent architecture.** The entire goal of this modernization is to delete the cruft, eliminate constructor soup, and enforce a clean, strongly typed API.
+### Preliminary Architectural Assessment & Engineering Strategy
 
-Here is the exact strategy for when and how the mass cleanup happens without stalling development.
+Before breaking down every task and sub-task, we must establish the **High-Integrity Execution Protocol**. 
 
----
-
-### The 3-Step "Strangler" Strategy
-
-```
-Phase 2 & 3: Bridge Phase (Dual-Mode)
-├─ New API is introduced (FrameConfig, MeterBallistics, StrEnums, Snapshots).
-├─ Legacy arguments trigger a one-line DeprecationWarning (non-fatal).
-└─ Old screens continue to run while new tests validate the modern contracts.
-       │
-       ▼
-Phase 5: Modernize the Screen Library (The Migration Wave)
-├─ Batch-migrate screens:
-│   ├─ tests/screens3.py (Hero screens H1–H9) -> 100% FrameConfig & Enums
-│   ├─ tests/desktop_hero.py -> 100% FrameConfig & Enums
-│   └─ tests/VUscreens.py & tests/gltest.py -> Updated to new API
-└─ The test screens themselves become executable examples of the new clean API.
-       │
-       ▼
-Phase 6: The "Mass Purge" (Complete Tech Debt Deletion)
-├─ Strip all legacy `*args`, loose `**kwargs`, and dictionary fallback paths.
-├─ Remove dict-based outline/background unpacking (`if isinstance(b, dict): ...`).
-├─ Enforce `FrameConfig` and strict dataclasses everywhere.
-└─ Delete obsolete test scripts, leaving a unified, modern test suite.
-```
+To balance risk and allow safe rollback at every point, each work unit is structured as an **atomic, bisectable micro-milestone**:
+1. **Branch & Rollback Granularity:** Every sub-task maps directly to an isolated Git feature branch (`feat/task-X.Y`). A sub-task is merged into `main` **only** when its dedicated headless verification harness passes *and* the accumulated regression test suite (`tests/run.py`) shows zero regressions. If a sub-task introduces visual or computational instability, a single `git switch main` cleanly aborts the change.
+2. **Dual-Harness Validation Strategy:** Every sub-task includes:
+   * **A Headless Synthetic Test Harness:** Executes in under 1 second using mock platforms (no audio hardware, no live display, no Roon network dependencies) to test mathematics, types, memory lifecycles, and edge conditions.
+   * **Integration with Live Test Screens:** Updates existing test screens in `tests/` so you can visually verify the exact visual behavior using your selective runner:
+     ```bash
+     python tests/run.py --vua     # Analogue VU meters
+     python tests/run.py --spec    # Spectrum analysers
+     python tests/run.py --hero    # Hero screens
+     ```
+3. **Strict Invariant Rule:** A sub-task must touch no more than **one core concept or component family** at a time. No refactoring of backgrounds while touching spectrum mathematics; no modifying layout framers while adjusting shaders.
 
 ---
 
-### Exact Timing: The Phased Plan
+### Questions & Clarifications Before Decomposing
 
-| Milestone | What Happens | State of Tech Debt |
-| :--- | :--- | :--- |
-| **Phase 2 (Current)** | Implement `FrameConfig` and integrate into `Frame.__init__`. Allow both `FrameConfig` and legacy kwargs. | New clean path available; legacy path still operational. |
-| **Phase 3 & 4** | Decouple ballistics (`MeterBallistics`, `FFTBallistics`), fix polar math, and wire up `ShaderDescriptor`. | Visualiser components upgraded to clean contracts. |
-| **Phase 5** | Reorganize Presets (`vu_analog_presets.py`, `spectrum_presets.py`, etc.). Refactor Hero Screens (`H1–H9`, `desktop_hero.py`) to use only the new API. | All primary screens running exclusively on the modern API. |
-| **Phase 6 (The Purge)** | **DELETE all legacy parameter parsing across the entire codebase.** Delete dict unpacking, delete obsolete test files (`screens.py`, `screens2.py`, stray scratch files in `trials/`), and lock down the API. | **100% Tech Debt Eradicated.** Zero legacy code remains. |
+To ensure the sub-task decomposition fits your operational workflow, please confirm the following:
 
+1. **Preset Directory Structure:**  
+   Shall we place all modular presets in `src/pyvisualiser/presets/` (e.g. `vu_analog_presets.py`, `spectrum_presets.py`, `bar_presets.py`), or inside `src/pyvisualiser/styles/presets/` to maintain the existing top-level namespace?
+2. **Strictness of Deprecation Warnings:**  
+   During Phase 4 (prior to the Phase 5 Purge), should legacy dictionary passing emit a standard `warnings.warn(..., DeprecationWarning)` to the console, or should it log silently to an audit list (e.g., `Platform.deprecation_log`) to avoid cluttering your visual test terminal?
+3. **Execution Cadence:**  
+   Would you prefer to review the decomposition plan as a whole first, or should we output the decomposed blueprint for **Phase 4 (Sub-tasks 4.1.1 through 4.3.5)** immediately so you can inspect the prompt and test harness format before generating subsequent phases?
+
+---
+
+### Master Decomposed Sub-Task Index (Overview)
+
+Below is how the remaining phases are decomposed into high-integrity micro-tasks designed for mixed automated/human execution:
+
+```
+PHASE 3: BALLISTICS DECOUPLING & FREQUENCY CALIBRATION
+├─ Sub-task 3.1.1: MeterBallistics Integration & Decay Curve Tests (VU Analogue & Digital)
+└─ Sub-task 3.1.2: FFTBallistics Integration & Spectrum Temporal Damping Calibration
+
+PHASE 4: SYSTEMATIC DATACLASS API MIGRATION & ERGONOMICS DOGFOODING
+├─ Workstream 4.1: Component Constructor Modernization
+│   ├─ Sub-task 4.1.1: VUMeter & Needle/Scale Dataclass Binding
+│   ├─ Sub-task 4.1.2: VUFrame & BarStyle Dataclass Binding
+│   ├─ Sub-task 4.1.3: SpectrumFrame & SpectrumStyle Dataclass Binding
+│   ├─ Sub-task 4.1.4: MetaImages, ArtFrame & ReflectionStyle Dataclass Binding
+│   ├─ Sub-task 4.1.5: MetaData, TextFrame & PlayProgressFrame Dataclass Binding
+│   └─ Sub-task 4.1.6: ShaderFrame & GLSLFrame Dataclass Binding
+├─ Workstream 4.2: Domain Preset Library Separation
+│   ├─ Sub-task 4.2.1: Bar & Indicator Presets (bar_presets.py)
+│   ├─ Sub-task 4.2.2: Analogue VU Meter Presets (vu_analog_presets.py)
+│   ├─ Sub-task 4.2.3: Digital VU Meter Presets (vu_digital_presets.py)
+│   ├─ Sub-task 4.2.4: Spectrum Analyzer Presets (spectrum_presets.py)
+│   ├─ Sub-task 4.2.5: Atmospheric & Background Presets (background_presets.py)
+│   └─ Sub-task 4.2.6: Vector Outline & Bezel Presets (outline_presets.py)
+└─ Workstream 4.3: Screen Archetype Dogfooding & Verification
+    ├─ Sub-task 4.3.1: Archetype 1 - Studio Analogue Console (H1 Refactor)
+    ├─ Sub-task 4.3.2: Archetype 2 - Reflective Horizon Spectrum (H2 Refactor)
+    ├─ Sub-task 4.3.3: Archetype 3 - Art-Centric Hi-Fi Streamer (H6 Refactor)
+    ├─ Sub-task 4.3.4: Archetype 4 - 3D Shader Immersion (H3/H7 Refactor)
+    └─ Sub-task 4.3.5: Archetype 5 - Floating Desktop Companion (desktop_hero.py Refactor)
+
+PHASE 5: THE MASTER PURGE & ARCHITECTURE HARDENING
+├─ Sub-task 5.1: Purge Dictionary Unpacking in Outlines & Backgrounds
+├─ Sub-task 5.2: Purge Loose *args and **kwargs in Frame & AxisFramers
+├─ Sub-task 5.3: Purge Legacy Platform Snooping in Components
+└─ Sub-task 5.4: Repository Hygiene (Deprecate screens.py, screens2.py, trials/)
+
+PHASE 6: GLSL SHADER PIPELINE & TEMPLATE ENGINE
+├─ Sub-task 6.1: Clean GLSL Header Injection & Audio Uniform Bridge
+└─ Sub-task 6.2: Fragment Shader Boilerplate Prototyping Generator
+
+PHASE 7: QA SUITE CONSOLIDATION & THREE-TIER DOCUMENTATION
+├─ Sub-task 7.1: Master Unified Test Runner (run_tests.py / pytest consolidation)
+├─ Sub-task 7.2: Level 1 Documentation - Beginner Declarative Quickstart
+├─ Sub-task 7.3: Level 2 Documentation - Presets, Atmospheres & Shaders Guide
+├─ Sub-task 7.4: Level 3 Documentation - Full Architectural & Mathematical Reference
+└─ Sub-task 7.5: Baseline Freeze & v2.1.0 Tagging
+
+PHASE 8: REAL-TIME INTERACTIVE DESIGN TOOL (HUD)
+├─ Sub-task 8.1: Dedicated Zero-Leak HUD Overlay Pass
+├─ Sub-task 8.2: Dynamic Parameter Propagation Engine
+└─ Sub-task 8.3: Single-Key Python Preset Code Serializer
+```
+
+---
+
+*Awaiting your response to the 3 questions above, after which we will immediately begin generating the detailed sub-task specifications, prompts, and test harnesses.*
+
+### Phase 4 Architectural Review: Interface Harmonization & Golden Standard
+
+To eliminate fragmentation across the library, every component in `pyvisualiser` must follow the identical design pattern set by **`VUMeter`** and **`SpectrumFrame`**.
+
+---
+
+### The Golden Standard Component Contract
+
+Every component constructor adheres to an invariant signature hierarchy:
+
+```python
+Component(
+    parent,                               # 1. Structural Container
+    [domain_binding],                     # 2. Primary Data Binding (Channel, MetadataKey, or Shader Name)
+    config: Optional[FrameConfig] = None, # 3. Spatial & Container Envelope (Scalers, Align, Bounds, Theme, Outline)
+    visuals: Optional[VisualsDataclass]   # 4. Component Aesthetics (SDF shapes, colors, ticks, textures)
+    [ballistics: Optional[Ballistics]],   # 5. Motion Dynamics (Decay, smoothing, inertia, peak hold)
+    [secondary_visuals]                   # 6. Nested Sub-elements (e.g. BarStyle inside a Progress Bar)
+)
+```
+
+---
+
+## 1. Resolution of the Two Specific Shortcomings
+
+### A. Integrating `barsize_pc` directly into `BarStyle`
+Previously, `barsize_pc` floated loosely as an ad-hoc argument in `VUFrame(barsize_pc=0.7)`, `PlayProgressFrame(barsize_pc=0.5)`, `SpectrumStyle(barsize_pc=2.0)`, and `OscillogrammeStyle(barsize_pc=2.0)`.
+
+**Architectural Fix:**
+* The thickness, height percentage, and fill proportion of a bar are intrinsic geometric properties of the bar itself.
+* `barsize_pc: float = 0.7` is consolidated directly into **`BarStyle`**.
+* Components drawing bars (`VUFrame`, `PlayProgressFrame`, `SpectrumFrame`, `OscilogrammeBar`) read their thickness directly from `bar_visuals.barsize_pc`. Loose floating parameters are completely eliminated.
+
+```python
+@dataclass(frozen=True)
+class BarStyle:
+    """Unified visual geometry and sizing for solid and segmented LED bars."""
+    barsize_pc: float = 0.7           # Thickness / fill ratio relative to container (0.0 to 1.0)
+    led_h: int = 10                   # Height of individual LED segments (pixels)
+    led_gap: int = 2                  # Gap between LED segments (0 = continuous solid bar)
+    peak_h: int = 2                   # Thickness of floating peak hold marker
+    radius: int = 2                   # Corner rounding radius for bar / segments
+    orient: Orientation = Orientation.VERTICAL
+    flip: bool = False                # Reverse growth direction
+    tip: bool = False                 # Rounded or emphasized tip segment
+    colour_mode: str = "horz"         # 'horz' (spread across bands) or 'vert' (height gradient)
+    edge_softness: float = 0.0        # Subpixel SDF edge anti-aliasing
+    effects: BarEffects = field(default_factory=BarEffects) # HDR Bloom & Peak Flash
+```
+
+---
+
+### B. Developing First-Class Dataclasses for 4.1.4 & 4.1.5
+
+#### 1. Media Artwork Interface (`MetaImages` & `ArtFrame` in 4.1.4)
+Previously, `MetaImages` took loose arguments (`art_type='album'`, `opacity=1.0`, `reflection=None`, `**kwargs`).
+
+**Harmonized Contract:**
+We introduce **`ImageStyle`** to encapsulate all visual attributes of raster artwork:
+
+```python
+@dataclass(frozen=True)
+class ImageStyle:
+    """Aesthetic styling for album art and artist photography."""
+    opacity: float = 1.0                              # Texture alpha transparency (0.0 to 1.0)
+    reflection: Optional[ReflectionStyle] = None      # Mirrored floor reflection
+    corner_radius: int = 0                            # Rounded bezel corners
+    border_width: int = 0                             # Inner picture frame border
+    border_colour: str = "mid"
+    glow_intensity: float = 0.0                       # Additive outer edge aura
+    glow_colour: Optional[str] = None
+```
+
+**Resulting `MetaImages` Constructor:**
+```python
+MetaImages(
+    parent,
+    key: MetadataKey = MetadataKey.ALBUM,
+    config: Optional[FrameConfig] = None,
+    visuals: Optional[ImageStyle] = None
+)
+```
+
+---
+
+#### 2. Typography & Text Interface (`TextFrame` & `MetaData` in 4.1.5)
+Previously, `TextFrame` scattered parameters across `text`, `font_size`, `wrap`, `justify`, and `colour`.
+
+**Harmonized Contract:**
+We expand **`TextStyle`** to be the definitive typography specification:
+
+```python
+@dataclass(frozen=True)
+class TextStyle:
+    """Complete typographic visual specification."""
+    typeface: str = "Inter/Inter-VariableFont_opsz,wght.ttf"
+    font_size: Optional[int] = None                   # Fixed size cap; None = auto-scale to frame
+    colour: str = "foreground"                        # Theme colour index
+    justify: Tuple[str, str] = ("centre", "middle")   # (horizontal, vertical) anchoring
+    wrap: bool = False                                # Multi-line text wrapping toggle
+    max_lines: int = 1                                # Line clamp limit
+    glow_intensity: float = 0.0                       # Text drop-shadow or bloom aura
+```
+
+**Resulting `TextFrame` & `MetaData` Constructors:**
+```python
+TextFrame(
+    parent,
+    text: str = "",
+    config: Optional[FrameConfig] = None,
+    visuals: Optional[TextStyle] = None,
+    update_fn: Optional[Callable[..., str]] = None
+)
+
+MetaData(
+    parent,
+    key: MetadataKey = MetadataKey.TRACK,
+    config: Optional[FrameConfig] = None,
+    visuals: Optional[TextStyle] = None
+)
+```
+
+---
+
+#### 3. Transport Progression Interface (`PlayProgressFrame` in 4.1.5)
+Previously, `PlayProgressFrame` took up to 12 loose parameters (`barsize_pc`, `orient`, `led_h`, `led_gap`, `radius`, `barw_min`, `barw_max`, `tip`, `theme`, `flip`, `outline`).
+
+**Harmonized Contract:**
+A progress bar is a composite widget: a central dynamic bar flanked by timecode labels. Its interface takes `bar_visuals` (`BarStyle`) and `text_visuals` (`TextStyle`):
+
+```python
+PlayProgressFrame(
+    parent,
+    config: Optional[FrameConfig] = None,
+    bar_visuals: Optional[BarStyle] = None,
+    text_visuals: Optional[TextStyle] = None
+)
+```
+
+---
+
+## 2. Exhaustive Phase 4 API Consistency Matrix
+
+Every component across the library is now aligned with the `VUMeter` and `SpectrumFrame` pattern:
+
+| Component | Domain Binding | Layout & Container | Primary Visuals | Motion Dynamics / Ballistics | Sub-Element Visuals |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`VUMeter`** | `channel: Channel` | `config: FrameConfig` | `visuals: VUMeterStyle` | `ballistics: MeterBallistics` | — |
+| **`VUFrame`** | `channel: Channel` | `config: FrameConfig` | `bar_visuals: BarStyle` | `ballistics: MeterBallistics` | — |
+| **`SpectrumFrame`** | `channel: Channel` | `config: FrameConfig` | `visuals: SpectrumStyle` | `ballistics: FFTBallistics` | `bar_visuals: BarStyle` |
+| **`Diamondiser`** | `channel: Channel` | `config: FrameConfig` | `visuals: SpectrumStyle` | `ballistics: FFTBallistics` | — |
+| **`Oscilogramme`** | `channel: Channel` | `config: FrameConfig` | `visuals: OscillogrammeStyle` | — | — |
+| **`OscilogrammeBar`** | `channel: Channel` | `config: FrameConfig` | `visuals: OscillogrammeStyle` | — | `bar_visuals: BarStyle` |
+| **`MetaImages`** | `key: MetadataKey` | `config: FrameConfig` | `visuals: ImageStyle` | — | `reflection: ReflectionStyle` |
+| **`TextFrame`** | `text: str` | `config: FrameConfig` | `visuals: TextStyle` | — | — |
+| **`MetaData`** | `key: MetadataKey` | `config: FrameConfig` | `visuals: TextStyle` | — | — |
+| **`PlayProgressFrame`**| — | `config: FrameConfig` | `bar_visuals: BarStyle` | — | `text_visuals: TextStyle` |
+| **`ShaderFrame`** | `shader: str` | `config: FrameConfig` | `visuals: ShaderVisuals` | — | — |
+
+---
+
+## 3. Updated Phase 4 Implementation Workstreams
+
+```
+                     UPDATED PHASE 4 WORKSTREAMS
+                                  │
+     ┌────────────────────────────┼────────────────────────────┐
+     ▼                            ▼                            ▼
+Workstream 4.1: Component    Workstream 4.2: Domain        Workstream 4.3: Screen
+Constructors Modernization   Presets Separation            Ergonomics Dogfooding
+(4.1.1 VUMeter               (4.2.1 bar_presets            (4.3.1 Studio Console
+ 4.1.2 VUFrame                4.2.2 vu_analog_presets       4.3.2 Reflective Horizon
+ 4.1.3 SpectrumFrame          4.2.3 vu_digital_presets      4.3.3 Art Streamer
+ 4.1.4 MetaImages (ImageStyle)4.2.4 spectrum_presets        4.3.4 3D Immersion
+ 4.1.5 MetaData & Progress    4.2.5 background_presets      4.3.5 Desktop Widget)
+ 4.1.6 ShaderFrame)           4.2.6 outline_presets)
+```
+
+### Detailed Sub-Tasks for Workstream 4.1:
+
+* **Sub-task 4.1.1: `VUMeter` Harmonization**
+  * `VUMeter(parent, channel=Channel.LEFT, config=FrameConfig(), visuals=VUMeterStyle(), ballistics=MeterBallistics())`
+* **Sub-task 4.1.2: `VUFrame` Harmonization**
+  * `VUFrame(parent, channel=Channel.LEFT, config=FrameConfig(), bar_visuals=BarStyle(barsize_pc=0.7), ballistics=MeterBallistics())`
+  * Loose `barsize_pc` moved into `BarStyle`.
+* **Sub-task 4.1.3: `SpectrumFrame` Harmonization**
+  * `SpectrumFrame(parent, channel=Channel.MONO, config=FrameConfig(), visuals=SpectrumStyle(), bar_visuals=BarStyle(), ballistics=FFTBallistics())`
+* **Sub-task 4.1.4: `MetaImages` & `ArtFrame` Harmonization**
+  * Introduce `ImageStyle` dataclass.
+  * `MetaImages(parent, key=MetadataKey.ALBUM, config=FrameConfig(), visuals=ImageStyle())`
+* **Sub-task 4.1.5: `MetaData`, `TextFrame` & `PlayProgressFrame` Harmonization**
+  * Expand `TextStyle` to encompass font size, justification, and wrapping.
+  * `TextFrame(parent, text="...", config=FrameConfig(), visuals=TextStyle())`
+  * `MetaData(parent, key=MetadataKey.TRACK, config=FrameConfig(), visuals=TextStyle())`
+  * `PlayProgressFrame(parent, config=FrameConfig(), bar_visuals=BarStyle(), text_visuals=TextStyle())`
+* **Sub-task 4.1.6: `ShaderFrame` Harmonization**
+  * `ShaderFrame(parent, shader="liquidorb", config=FrameConfig(), visuals=ShaderVisuals(colour="mid"))`
+
+---
+
+## Ready for Execution
+
+With `barsize_pc` unified into `BarStyle` and first-class dataclasses (`ImageStyle`, `TextStyle`) defined for artwork, typography, and progress widgets, all components now reflect a single architectural pattern.
+
+We are ready to proceed with **Sub-task 3.1.1 (MeterBallistics Integration & Decay Verification)**.

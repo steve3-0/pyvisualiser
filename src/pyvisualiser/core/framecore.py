@@ -981,7 +981,7 @@ class Smoother:
 
     def smoothed(self):
         if self.size==5: #Triange smoother
-            return min(self.FrameHeight, (sum(self.smoother)+2*self.smoother[2]+self.smoother[1] +self.smoother[3])/8)
+            return min(self.FrameHeight, (sum(self.smoother)+2*self.smoother[2]+self.smoother[1] +self.smoother[3])/9)
         else:           #Rectangle smoother, can reduce size to 3 as well
             ave = 0
             tot = 0
