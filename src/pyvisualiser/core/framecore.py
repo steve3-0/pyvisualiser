@@ -677,6 +677,16 @@ class Frame(Geometry):
                 ok = False
         return ok
 
+    def add_cols(self, ratios=None, padpc=0.0, config: Optional[FrameConfig] = None, **kwargs) -> "ColFramer":
+        """Fluent helper to create, attach, and return a ColFramer."""
+        cfg = config if config is not None else FrameConfig(**kwargs)
+        return ColFramer(self, col_ratios=ratios, padpc=padpc, config=cfg)
+
+    def add_rows(self, ratios=None, padpc=0.0, config: Optional[FrameConfig] = None, **kwargs) -> "RowFramer":
+        """Fluent helper to create, attach, and return a RowFramer."""
+        cfg = config if config is not None else FrameConfig(**kwargs)
+        return RowFramer(self, row_ratios=ratios, padpc=padpc, config=cfg)
+
 #End of Frame class
 
 """
@@ -802,6 +812,8 @@ class RowFramer(AxisFramer):
             padpc=padpc,
             config=config
         )
+
+
 
 #------------------- End Framers -----------------------------------------------------
 

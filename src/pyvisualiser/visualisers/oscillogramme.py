@@ -47,19 +47,19 @@ from pyvisualiser.styles.styles import OscillogrammeStyle, BarStyle
 
 class OscilogrammeBar(Frame):
     """
-    Displays vertical time-domain sample bars with decay dynamics.
+    Displays vertical time-domain sample bars with decay dynamics,
+    configured via OscillogrammeStyle (encapsulating BarStyle).
     """
     def __init__(
         self,
         parent,
         channel: Channel | str = Channel.MONO,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[OscillogrammeStyle] = None,
-        bar_visuals: Optional[BarStyle] = None
+        visuals: Optional[OscillogrammeStyle] = None
     ):
         self.channel = Channel.from_str(str(channel))
         self.oscillograme = visuals if visuals is not None else OscillogrammeStyle()
-        self.bar_style = bar_visuals if bar_visuals is not None else self.oscillograme.bar_style
+        self.bar_style = self.oscillograme.bar_style
 
         resolved_config = config if config is not None else FrameConfig()
         super().__init__(parent, config=resolved_config)
@@ -157,7 +157,6 @@ class Oscilogramme(Frame):
 
         self.lines.draw_mod_line(samples, colour='foreground')
         return True
-
 
 class SamplesFrame(Frame):
     """

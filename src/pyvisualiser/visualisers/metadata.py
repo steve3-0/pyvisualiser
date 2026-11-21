@@ -110,7 +110,7 @@ class MetaDataFrame(Frame):
 
     def configure(self):
         # Build 4-row stack: Track, Album, Artist, Progress Bar
-        rows = RowFramer(self, row_ratios=(1.5, 1, 1, 0.5), padpc=0.3, padding=0.0)
+        rows = RowFramer(self, row_ratios=(1.5, 1, 1, 0.5), padpc=0.3, config=FrameConfig(padding=0.0))
         rows += MetaData(rows, MetadataKey.TRACK,  visuals=TextStyle(colour='foreground', justify='centre'))
         rows += MetaData(rows, MetadataKey.ALBUM,  visuals=TextStyle(colour='light', justify='centre'))
         rows += MetaData(rows, MetadataKey.ARTIST, visuals=TextStyle(colour='light', justify='centre'))
