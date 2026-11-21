@@ -28,7 +28,7 @@ Visualiser Frames create complex responses to the audio:
 
 from    pyvisualiser.core.framecore  import Frame, Smoother
 from    pyvisualiser.core.components import Bar, Text, Line, Box, Image, ArcsOctaves, BarEffects, BarStyle, SpectrumStyle
-from    pyvisualiser.core.frame_config  import PI, Centred
+from    pyvisualiser.core.frame_config  import FrameConfig, PI, Centred
 from    pyvisualiser.styles.styles   import OscillogrammeStyle, BarStyle
 import numpy as np
 

@@ -331,8 +331,8 @@ class VUFrame(Frame):
         self.ballistics = ballistics
         self.bar_style = visuals if visuals is not None else BarStyle()
 
-        resolved_config = config if config is not None else FrameConfig()
-        super().__init__(parent, config=resolved_config)
+        # resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=config)
         self.configure()
 
     def configure(self):
@@ -351,11 +351,12 @@ class VUFrame(Frame):
 
 """ Complex VU Meters""" 
 
+
 class VUMeterImageFrame(Frame):
     """ Image background based class - the """
-    def __init__(self, parent, type=None, scalers=None, align=('centre', 'middle'),outline=None,square=False):
+    def __init__(self, parent, type=None, config:Optional[FrameConfig]=None):
 
-        Frame.__init__(self, parent, scalers=scalers, align=align, outline =outline,square=square)
+        Frame.__init__(self, parent, config=config)
 
         NEEDLE      = VUNeedleStyle(colour='dark', width=4, length=0.7, radius_pc = 0.7)
                                     # { 'width':3, 'colour': 'dark', 'length': 0.7, 'radius_pc': 0.7 }
@@ -367,24 +368,36 @@ class VUMeterImageFrame(Frame):
                         # { 'width':4, 'colour': 'alert', 'length': 0.85, 'radius_pc': 0.75 }
 
         ENDSTOPS    = (3*PI/4, 5*PI/4)
-        METERS      = { 'blueVU' : VUMeterStyle(texture_path='blue-bgr.png', needle=NEEDLE, endstops=ENDSTOPS, pivot=-0.49, theme='blue'),
-                        'goldVU' : VUMeterStyle(texture_path='gold-bgr.png', needle=NEEDLE2, endstops=ENDSTOPS, pivot=-0.35, theme='white'),
-                        'blackVU': VUMeterStyle(texture_path='black-white-bgr.png', needle=NEEDLE3, endstops=ENDSTOPS, pivot=-0.65, theme='meter1'),
-                        'rainVU' : VUMeterStyle(texture_path='rainbow-bgr.png', needle=NEEDLE4, endstops=ENDSTOPS, pivot=-0.75, theme='meter1'),
-                        'redVU'  : VUMeterStyle(texture_path='red-bgr.jpeg', needle=VUNeedleStyle(width=3, colour='dark', length=0.8, radius_pc=0.65), endstops=ENDSTOPS, pivot=-0.76, theme='meter1'),
-                        'vintVU' : VUMeterStyle(texture_path='vintage-bgr.jpeg', needle=VUNeedleStyle(width=3, colour='alert', length=0.7, radius_pc=0.8), endstops=ENDSTOPS, pivot=-0.6, theme='meter1'),
-                        'whiteVU': VUMeterStyle(texture_path='white-red-bgr.png', needle=VUNeedleStyle(width=2, colour='foreground', length=0.75, radius_pc=0.65), endstops=ENDSTOPS, pivot=-0.75, theme='meter1'),
-                        'OldVU': VUMeterStyle(texture_path='vintage-VU.png', needle=VUNeedleStyle(width=3, colour='foreground', length=0.75, radius_pc=0.65), endstops=ENDSTOPS, pivot =-0.75, theme='meter2'),
-                        'ModVU': VUMeterStyle(texture_path='modern-VU.png', needle=VUNeedleStyle(width=2, colour='foreground', length=0.75, radius_pc=0.65), endstops=ENDSTOPS, pivot=-0.75, theme='meter1'),
-                        'greenVU': VUMeterStyle(texture_path='emerald-bgr.jpeg', needle=VUNeedleStyle(width=2, colour='foreground', length=0.63, radius_pc=0.60), endstops=ENDSTOPS, pivot=-0.6, theme='meter1') }
+        METERS      = { 'blueVU' : VUMeterStyle(texture_path='blue-bgr.png', needle=NEEDLE, endstops=ENDSTOPS, pivot=-0.49),
+                        'goldVU' : VUMeterStyle(texture_path='gold-bgr.png', needle=NEEDLE2, endstops=ENDSTOPS, pivot=-0.35),
+                        'blackVU': VUMeterStyle(texture_path='black-white-bgr.png', needle=NEEDLE3, endstops=ENDSTOPS, pivot=-0.65),
+                        'rainVU' : VUMeterStyle(texture_path='rainbow-bgr.png', needle=NEEDLE4, endstops=ENDSTOPS, pivot=-0.75),
+                        'redVU'  : VUMeterStyle(texture_path='red-bgr.jpeg', needle=VUNeedleStyle(width=3, colour='dark', length=0.8, radius_pc=0.65), endstops=ENDSTOPS, pivot=-0.76),
+                        'vintVU' : VUMeterStyle(texture_path='vintage-bgr.jpeg', needle=VUNeedleStyle(width=3, colour='alert', length=0.7, radius_pc=0.8), endstops=ENDSTOPS, pivot=-0.6),
+                        'whiteVU': VUMeterStyle(texture_path='white-red-bgr.png', needle=VUNeedleStyle(width=2, colour='foreground', length=0.75, radius_pc=0.65), endstops=ENDSTOPS, pivot=-0.75),
+                        'OldVU': VUMeterStyle(texture_path='vintage-VU.png', needle=VUNeedleStyle(width=3, colour='foreground', length=0.75, radius_pc=0.65), endstops=ENDSTOPS, pivot =-0.75),
+                        'ModVU': VUMeterStyle(texture_path='modern-VU.png', needle=VUNeedleStyle(width=2, colour='foreground', length=0.75, radius_pc=0.65), endstops=ENDSTOPS, pivot=-0.75),
+                        'greenVU': VUMeterStyle(texture_path='emerald-bgr.jpeg', needle=VUNeedleStyle(width=2, colour='foreground', length=0.63, radius_pc=0.60), endstops=ENDSTOPS, pivot=-0.6) }
+
+        METERS_THEME = { 'blueVU' :  'blue',
+                        'goldVU' :  'white',
+                        'blackVU': 'meter1',
+                        'rainVU' : 'meter1',
+                        'redVU'  : 'meter1',
+                        'vintVU' : 'meter1',
+                        'whiteVU': 'meter1',
+                        'OldVU': 'meter2',
+                        'ModVU': 'meter1',
+                        'greenVU': 'meter1'}
 
         # if the meter type does not exist then there will be a run time error
         # meter colour themes assume meter1
         style = METERS[type]
+        theme = METERS_THEME[type]
         outline = OutlineStyle(width=4, radius=10, colour='light', glow_intensity=0.1, softness=0.2)
-        cols = ColFramer(self, padding=30, padpc=0.05)
-        cols += VUMeter(cols, 'left', style=style, outline=outline)
-        cols += VUMeter(cols, 'right', style=style, outline=outline)    
+        cols = ColFramer(self, config=FrameConfig(padding=30), padpc=0.05)
+        cols += VUMeter(cols, 'left', visuals=style, config=FrameConfig(outline=outline, theme=theme))
+        cols += VUMeter(cols, 'right', visuals=style, config=FrameConfig(outline=outline, theme=theme)   ) 
 
 
 class VU2chFrame(Frame):
@@ -434,15 +447,6 @@ class VU2chFrame(Frame):
                 ballistics=self.ballistics
             )
 
-    def update_screen(self, audio=None, media=None):
-        self.draw_outline()
-        self.draw_background()
-        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
-        for f in draw_list:
-            f.draw_outline()
-            f.draw_background()
-            f.update_screen(audio=audio, media=media)
-        return True
 
 
 class VUFlipFrame(Frame):
@@ -479,50 +483,64 @@ class VUFlipFrame(Frame):
             rows += VUFrame(rows, channel=Channel.LEFT, visuals=style_l, ballistics=self.ballistics)
             rows += VUFrame(rows, channel=Channel.RIGHT, visuals=style_r, ballistics=self.ballistics)
 
-    # def update_screen(self, audio=None, media=None):
-    #     self.draw_outline()
-    #     self.draw_background()
-    #     draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
-    #     for f in draw_list:
-    #         f.draw_outline()
-    #         f.draw_background()
-    #         f.update_screen(audio=audio, media=media)
-    #     return True
+# from dataclasses import dataclass, replace
+# class VUHorzFrame(Frame):
+#     def __init__(self, parent, channel, visuals=None):
 
+
+#         Frame.__init__(self, parent)
+#         cols = ColFramer(self, col_ratios=(1,3))
+#         # cols = self
+#         channel_text = ' L' if channel=='left' else ' R'
+#         cols += TextFrame(cols, text=channel_text)
+  
+#         style=visuals replace(orient='horz')
+#         cols += VUFrame(cols, channel=channel, visuals=style)
+
+from typing import Optional
+from dataclasses import replace
+from pyvisualiser.core.base_defs import Channel, HorizontalAlign, VerticalAlign
 class VUHorzFrame(Frame):
-    def __init__(self, parent, channel, **kwargs):
-        # Split kwargs into Frame args and VUFrame args
-        # frame_keys = ['scalers', 'align', 'square', 'theme', 'background', 'outline', 'padding']
-        # frame_kwargs = {k: kwargs[k] for k in frame_keys if k in kwargs}
-        # vu_kwargs = {k: v for k, v in kwargs.items() if k not in frame_keys}
-
-        Frame.__init__(self, parent)
-        cols = ColFramer(self, col_ratios=(1,3))
-        # cols = self
-        channel_text = ' L' if channel=='left' else ' R'
-        cols += TextFrame(cols, text=channel_text)
+    """Horizontal stereo/mono channel meter row with a channel label prefix."""
+    def __init__(
+        self,
+        parent,
+        channel: Channel | str = Channel.LEFT,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[BarStyle] = None
+    ):
+        super().__init__(parent, config=config or FrameConfig())
+        self.channel = Channel.from_str(str(channel))
         
-        # Default gap to 0 for horizontal bars if not specified, but allow override
-        # if 'led_gap' not in vu_kwargs and 'segment_gap' not in vu_kwargs:
-        #     vu_kwargs['segment_gap'] = 0
-        style = kwargs.get('style') or BarStyle(orient='horz')
+        # Ensure the passed BarStyle is configured for horizontal orientation
+        base_bar_style = visuals if visuals is not None else BarStyle()
+        self.bar_style = replace(base_bar_style, orient='horz')
+        
+        self.configure()
 
-        from dataclasses import replace
-        style = replace(style, orient='horz')
-            
-        cols += VUFrame(cols, channel=channel, barsize_pc=0.8, bar_style=style)
+    def configure(self):
+        # Use fluent add_cols helper (ColFramer with ratios 1:3 for label vs bar)
+        cols = self.add_cols(ratios=(1, 3), padpc=0.0, config=FrameConfig(padding=0))
 
-
+        channel_text = ' L' if self.channel == Channel.LEFT else ' R'
+        
+        # Add channel text label
+        cols += TextFrame(
+            cols,
+            text=channel_text,
+            config=FrameConfig(align=(HorizontalAlign.CENTRE, VerticalAlign.MIDDLE)),
+            visuals=TextStyle(colour='light')
+        )
+        cols += VUFrame(cols, channel=self.channel, visuals=self.bar_style)
 
 class VU2chHorzFrame(Frame):
-    def __init__(self, parent, tip=False, frameconfig=None, style=None, **kwargs):
+    def __init__(self, parent, tip=False, config=None, visuals=None):
         # Pass the FrameConfig object directly to the parent Frame constructor 
         # using your existing bridge layer (config=frameconfig)
-        super().__init__(parent, config=frameconfig)
+        super().__init__(parent, config=config)
 
         # Pass style, tip, and component-specific arguments down to the subframes
-        # rows = RowFramer(self)
-        # rows += VUHorzFrame(rows, 'left', tip=tip, style=style, **kwargs)
-        # rows += VUHorzFrame(rows, 'right', tip=tip, style=style, **kwargs)
-
-        self += VUFrame(self, channel='left', visuals=style)
+        rows = RowFramer(self)
+        rows += VUHorzFrame(rows, 'left', visuals=visuals)
+        rows += VUHorzFrame(rows, 'right', visuals=visuals)
+        # self += VUFrame(self, channel='left', visuals=visuals)

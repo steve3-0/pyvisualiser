@@ -26,10 +26,11 @@ from pyvisualiser.visualisers.oscillogramme import *
 from test_hero import *
 from test_vua import *
 from test_spectrum import *
-
+from test_full import *
+from test_vud import *
 
 from screens import *
-from screens2 import *
+
 from testscreens import *
 from test_api_coverage import *
 from test_advanced_visuals import *
@@ -52,14 +53,17 @@ SPECTRUM_TEST_SCREENS= (TestSpectrumScreen, StereoSpectrumLRScreen, FullSpectrum
 
 VU_TEST_SCREENS= (TrackVUMeterScreen2, VUImageScreen, VUScreen, VUVScreen, TestVUImageScreen1, TestVUImageScreen2, \
                   TestVUMetersScreen, TestVisualiserScreen, TestSpectrumScreen, TestVUScreen)
-VU_BAR_TEST_SCREENS = (VUScreen, VUVScreen, TestVUScreen, IntensityTestScreen)
+VU_BAR_TEST_SCREENS = (VUScreen, VU2Screen, VUVScreen, TestVUScreen, IntensityTestScreen, BarParametersTestScreen)
+
+META_TEST_SCREENS = ()
+
 GEO_TEST_SCREENS= (ColAlignedScreen, RowAlignedScreen, \
                    F1, F2,  F3, F4, F5, F6, F7, F8 )
 
 VU_METER_SCREENS = (VUTestScreen1,  VUTestScreen2,VUImageScreen, VUVintageScreen, VUModernScreen, VUTungstenScreen, 
                     VUNeedleStylesScreen,VUNeedleEffectsScreen, TestVUMetersScreen, TestVUImageScreen1, TestVUImageScreen2)
 
-TEST_SCREENS = (AmbientGlowTunerScreen, AdvancedVisualsScreen, APICoverageScreen, BarParametersTestScreen, VUVScreen, IntensityTestScreen, OutlineGlowTestScreen )
+TEST_SCREENS = (AmbientGlowTunerScreen, AdvancedVisualsScreen, APICoverageScreen,  VUVScreen, IntensityTestScreen, OutlineGlowTestScreen )
 
 MAIN_SCREENS= (TrackScreen, TrackVisScreen, TrackVisScreen2, TrackVisScreen3, TrackSpectrumScreen, \
                TrackSpectrumScreen2, MetaArtFrame, TrackSpectrumScreen3, TrackSpectrumScreen4,\
@@ -84,10 +88,11 @@ SUBFRAMES2 = (Spectrum2chFrame, SpectrumStereoFrame,  SpectrumStereoLRFrame,  Sp
 
 GLSCREENS  = (GLTestScreen3,GLTestScreen1, GLTestScreen2)
 
-TEST_SCREENS2 = (BackgroundEffectsScreen0, BackgroundEffectsScreen1, BackgroundEffectsScreen2, AmbientGlowTunerScreen,OutlineGlowTestScreen,ProfileTestScreen, \
+BACKGROUND_SCREENS = (BackgroundEffectsScreen0, BackgroundEffectsScreen1, BackgroundEffectsScreen2, AmbientGlowTunerScreen,OutlineGlowTestScreen,ProfileTestScreen, \
                  AudioTestScreen, BarEffectsTestScreen, LEDtestScreen, GlowTestScreen)
 
 HERO_SCREENS  = (H1,H2,H3,H4,H5,H6,H7,H8,H9)
+
 QUICK = (VUScreen,)
 
 ALLSCREENS = []
@@ -98,7 +103,9 @@ SCREEN_GROUPS = {
     "vua": (VU_METER_SCREENS, "Analogue VU meter screens"),
     "vud": (VU_BAR_TEST_SCREENS, "Digital Bar VU test screens"),
     "geo": (GEO_TEST_SCREENS, "Geometry layout test screens"),
-    "test": (TEST_SCREENS + TEST_SCREENS2, "Feature & component test screens"),
+    "meta" : (META_TEST_SCREENS, "Metadata "),
+    "back" : (BACKGROUND_SCREENS, "Background effects and layouts"),
+    "test": (TEST_SCREENS , "Feature & component test screens"),
     "art": (ART_SCREENS, "Art & image metadata screens"),
     "full": (FULL_SCREENS, "Full display layout screens"),
     "gl": (GLSCREENS, "OpenGL integration test screens"),
