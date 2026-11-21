@@ -29,7 +29,7 @@ class MeterBallistics:
 class FFTBallistics:
     """Motion dynamics and temporal filtering for spectrum analysers."""
     attack_rate: float = 0.90         # Rising responsiveness factor (0.0 to 1.0)
-    decay_rate: float = 0.25          # Falling decay rate per frame
+    decay_rate: float = 0.08          # Falling decay rate per frame
     peak_decay_rate: float = 0.02     # Floating peak marker decay rate
     smoothing_factor: float = 0.50    # Temporal blending between consecutive FFT frames
 

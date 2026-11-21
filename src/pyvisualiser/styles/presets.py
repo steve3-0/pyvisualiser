@@ -30,9 +30,8 @@ SunriseAmbientGlow = AmbientGlowStyle(colour='light', radius=0.40, softness=0.30
 OutlineDefault = None #{ 'width' : 1, 'radius' : 5, 'colour' : 'foreground', 'opacity': 255, 'glow_intensity': 0.1, 'softness': 0.1}
 
 # Frame Defaults
-FullScale      = (1.0,1.0)
-Centred        = ('centre', 'middle')
-PI             = 3.14159265358979323846
+
+
 
 # 
 

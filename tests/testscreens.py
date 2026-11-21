@@ -8,66 +8,9 @@ from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.visualisers.oscillogramme import *
 
 
-
-""" Spectrum Analyser based Screens """
-
-class Spectrum2chFrame(Frame): #""" Vert split - L/R """
-    def __init__(self, parent, **kwargs) :
-        Frame.__init__(self, parent, outline={'width':4,'colour':'light'}, **kwargs)
-
-        rows = ColFramer(self, scalers=(0.7, 0.7), padding=10, outline={'width':4,'colour':'light'})
-        rows += SpectrumFrame(rows, 'left'  )
-        rows += SpectrumFrame(rows, 'right' )
-class StereoSpectrumLRScreen(Frame):
-    """ Volume/Source on left - Spectrum on left - one channel """
-    def __init__(self, platform):
-        Frame.__init__(self, platform, theme='hifi')
-        self += Spectrum2chFrame(self, padding=30)
-
-
-class FullSpectrumOffsetScreen(Frame):
-    """ Volume/Source on left - Spectrum on left - one channel """
-    def __init__(self, platform):
-        Frame.__init__(self, platform, background=None)
-        self += SpectrumStereoOffsetFrame(self  , scalers=(1.0,1.0), align=('centre','middle'))
-
-
-class StereoSpectrumScreen(Frame):
-    """ Volume/Source on left - Stereo Spectrum overlaid """
-    def __init__(self, platform):
-        Frame.__init__(self, platform)
-        self += SpectrumStereoFrame(self  , scalers=(1.0,1.0), align=('centre','middle'))
-
-
-class StereoSpectrumSplitScreen(Frame):
-    """ Volume/Source on left - Stereo Spectrum overlaid """
-    @property
-    def title(self): return 'Full Spectrum Analyser, Roon Album Art, Metadata and progress bar'
-
-    @property
-    def type(self): return 'Test'
-    
-    def __init__(self, platform):
-        Frame.__init__(self, platform)
-        self += SpectrumStereoSplitFrame(self  , scalers=(1.0,1.0), align=('centre','middle'))
-
-
-class MonoSpectrumScreen(Frame):
-    """ Volume/Source on left - Stereo Spectrum overlaid """
-    def __init__(self, platform):
-        Frame.__init__(self, platform)
-        self += SpectrumFrame(self  , 'left', scalers=(1.0, 1.0),  spectrum_style=SpectrumStyle(barw_min=2, bar_style=BarStyle(led_gap=0, tip=True)))
-
-
-class MonoSpectrumLEDScreen(Frame):
-    """ Volume/Source on left - Stereo Spectrum overlaid """
-    def __init__(self, platform):
-        Frame.__init__(self, platform, outline={'width':5,'colour':'alert'}, theme='hifi', padding=30, background='background')
-        col = ColFramer(self)
-        col += SpectrumFrame(col, 'mono', scalers=(1.0, 1.0), spectrum_style=SpectrumStyle(barw_min=6, barsize_pc=0.2, bar_style=BarStyle(peak_h=2, led_gap=3, led_h=4)), background='dark')
-
-
-
+"""
+Hybrid Screens - these are top level frames comprising frames of frames at full display size
+"""
 class MixedLEDScreen(Frame):
     """ Volume/Source on left - Stereo Spectrum overlaid """
     def __init__(self, platform):
@@ -82,7 +25,7 @@ class MixedLEDScreen(Frame):
 class VUScreen(Frame):   
     def __init__(self, platform):
         background={'image':'stream.png','opacity':150}
-        Frame.__init__(self, platform,background='background')
+        Frame.__init__(self, platform)
         self += VU2chHorzFrame(self,
             bar_style=BarStyle(effects=BarEffects(threshold=0.6, scale=3.0, blur=0.9))
         )
@@ -150,25 +93,7 @@ class TestVisualiserScreen(Frame):
         self += OscilogrammeBar(self  , 'right', scalers=(1.0,0.5), align=('right','bottom'), bar_style=BarStyle(flip=True))
 
 
-class TestSpectrumScreen(Frame):   
-    @property
-    def title(self): return 'Tests out multiple configurations of spectrum analysers'
-    @property
-    def type(self): return 'Test'
 
-    def __init__(self, platform):
-        Frame.__init__(self, platform, theme='leds')
-        # 2 x 2 Cols, Rows
-        cols = ColFramer(self, col_ratios=(1, 1), padding=10)
-        row1 = RowFramer(cols, row_ratios=(1, 1), padding=10)
-        row2 = RowFramer(cols, row_ratios=(1, 1), padding=10)
-
-        row1 += SpectrumStereoSplitFrame(row1)
-        row1 += SpectrumStereoOffsetFrame(row1)
-        
-        # Migrated bar_style parameters into SpectrumStyle
-        row2 += MonoSpectrumScreen(row2)
-        row2 += SpectrumStereoFrame(row2)
 
 
 

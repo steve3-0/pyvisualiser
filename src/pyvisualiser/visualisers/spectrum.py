@@ -16,12 +16,10 @@
 from typing import Optional
 
 from pyvisualiser.core.framecore  import Frame, Smoother, RowFramer, ColFramer
-from pyvisualiser.core.frame_config import FrameConfig
+from pyvisualiser.core.frame_config import FrameConfig, PI, Centred
 from pyvisualiser.core.components import Bar, Text, Line, Box, Image, ArcsOctaves, BarStyle, SpectrumStyle
-from pyvisualiser.styles.presets  import PI, Centred
-from pyvisualiser.styles.styles   import MeterBallistics
 from pyvisualiser.styles.profiles import ProfileManager
-from pyvisualiser.styles.ballistics import FFTBallistics
+from pyvisualiser.styles.ballistics import MeterBallistics, FFTBallistics
 from pyvisualiser.core.state import AudioSnapshot
 from pyvisualiser.core.base_defs import Channel, Orientation
 
@@ -147,47 +145,34 @@ class SpectrumFrame(Frame, Spectrum):
     def __init__(
         self,
         parent,
-        channel=Channel.MONO,
-        # bar_style=None,
-        spectrum_style=None,
-        ballistics: Optional[FFTBallistics] = None,
+        channel: Channel | str = Channel.MONO,
         config: Optional[FrameConfig] = None,
-        **kwargs
+        visuals: Optional[SpectrumStyle] = None,
+        ballistics: Optional[FFTBallistics] = None
     ):
-        self.channel = str(channel)
+        self.channel = Channel.from_str(str(channel))
         self.ballistics = ballistics
-        self.bar_style = spectrum_style.bar_style if spectrum_style and hasattr(spectrum_style, 'bar_style') else BarStyle()
-        self.spectrum_style = spectrum_style if spectrum_style is not None else SpectrumStyle()
+        self.spectrum_style = visuals if visuals is not None else SpectrumStyle()
+        self.bar_style = self.spectrum_style.bar_style
 
-        Frame.__init__(
-            self,
-            parent,
-            config=config
+        resolved_config = config if config is not None else FrameConfig()
 
-        )
+        Frame.__init__(self, parent, config=resolved_config)
         self.configure()
 
     def configure(self):
         spectrum_w, spectrum_h = self.abs_wh
-
-        # Initialize Spectrum ballistics and band spacing
         Spectrum.__init__(
             self,
             spectrum_w,
-            barsize_pc=getattr(self.bar_style, 'barsize_pc', self.spectrum_style.barsize_pc),
+            barsize_pc=self.bar_style.barsize_pc,
             barw_min=self.spectrum_style.barw_min,
             barw_max=self.spectrum_style.barw_max,
             decay=self.spectrum_style.decay,
             ballistics=self.ballistics,
             platform=self.platform
         )
-
-        # Create the Bar component using newly calculated dimensions
-        self.bar = Bar(
-            self,
-            box_size=(self.width, spectrum_h),
-            bar_style=self.bar_style
-        )
+        self.bar = Bar(self, box_size=(self.width, spectrum_h), bar_style=self.bar_style)
 
     def update_screen(self, audio=None, media=None):
         self.read(self.channel, audio_snapshot=audio)
@@ -201,27 +186,14 @@ class SpectrumFrame(Frame, Spectrum):
                 x = i * (self.barw + self.bar_gap)
                 colour_index = x if col_mode == 'horz' else None
                 peak_val = self.peaks[len(self.current) - 1 - i]
-                self.bar.draw(
-                    x + right_offset,
-                    item.smoothed(),
-                    self.barw,
-                    peak_val,
-                    colour_index=colour_index
-                )
+                self.bar.draw(x + right_offset, item.smoothed(), self.barw, peak_val, colour_index=colour_index)
         else:
             for i in range(len(self.current)):
                 x = i * (self.barw + self.bar_gap)
                 colour_index = x if col_mode == 'horz' else None
-                self.bar.draw(
-                    x + right_offset,
-                    self.current[i].smoothed(),
-                    self.barw,
-                    self.peaks[i],
-                    colour_index=colour_index
-                )
+                self.bar.draw(x + right_offset, self.current[i].smoothed(), self.barw, self.peaks[i], colour_index=colour_index)
         return True
-        
-
+    
     @property
     def width(self):
         return self.bars * (self.bar_gap+self.barw)
@@ -230,123 +202,180 @@ class SpectrumFrame(Frame, Spectrum):
 
 """ A visualiser based on a circle display of spectrum lines """
 class Diamondiser(Frame, Spectrum):
-    BARSPACE = 1
-    def __init__(self, parent, channel, scalers=None, theme=None, align=None, barsize_pc=BARSPACE,background=None, z_order=0, **kwargs):
-        Frame.__init__(self, parent, scalers=scalers, align=align, square=True, theme=theme,background=background, z_order=z_order)
-        self.channel     = channel
-        self.barsize_pc   = barsize_pc
+    """Circular radial spectrum analyzer."""
+    def __init__(
+        self,
+        parent,
+        channel: Channel | str = Channel.MONO,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[SpectrumStyle] = None,
+        ballistics: Optional[FFTBallistics] = None
+    ):
+        self.channel = Channel.from_str(str(channel))
+        self.ballistics = ballistics
+        self.spectrum_style = visuals if visuals is not None else SpectrumStyle(barsize_pc=1.0)
+        self.bar_style = self.spectrum_style.bar_style
+
+        resolved_config = config if config is not None else FrameConfig(square=True)
+        super().__init__(parent, config=resolved_config)
         self.configure()
 
     def configure(self):
-        Spectrum.__init__(self, self.w, barsize_pc=self.barsize_pc, bandwidth=8000, decay=0.5)
-        # self.VU          = VU(self.platform, channel, decay=0.2)
-        self.max_radius  = self.h/2
-        self.ray_angle   = 1/self.bars
-        self.centre_pc   = 0.8
+        Spectrum.__init__(
+            self,
+            self.w,
+            barsize_pc=self.spectrum_style.barsize_pc,
+            bandwidth=8000,
+            decay=self.spectrum_style.decay,
+            ballistics=self.ballistics,
+            platform=self.platform
+        )
+        self.max_radius = self.h / 2
+        self.ray_angle = 1.0 / max(1, self.bars)
+        self.centre_pc = 0.8
+        from pyvisualiser.core.components import Line
+        import numpy as np
 
-        self.rays        = [Line(self, endstops=(PI/2, 5*PI/2), width=self.barsize_pc*2, tick_pc=self.centre_pc, centre_offset=0, \
-                            radius=self.max_radius, colour='mid') \
-                             for _ in range(self.bars)]
+        self.rays = [
+            Line(
+                self,
+                endstops=(np.pi / 2, 5 * np.pi / 2),
+                width=int(self.spectrum_style.barsize_pc * 2),
+                tick_pc=self.centre_pc,
+                centre_offset=0,
+                radius=self.max_radius,
+                colour='mid'
+            )
+            for _ in range(self.bars)
+        ]
 
-    def update_screen(self):
-        self.read(self.channel)
-        radius  = self.centre_pc
-
+    def update_screen(self, audio=None, media=None):
+        self.read(self.channel, audio_snapshot=audio)
+        radius = self.centre_pc
         for ray_index, ray in enumerate(self.rays):
-            col = self.max_radius*(ray_index/self.bars)
-            amp = radius*self.current[ray_index].smoothed() if self.current[ray_index].smoothed() > 0 else 0
-            ray.drawFrameCentredVector(ray_index*self.ray_angle, amplitude=amp, gain=1-radius, colour=col)
+            col = self.max_radius * (ray_index / max(1, self.bars))
+            amp = radius * self.current[ray_index].smoothed() if self.current[ray_index].smoothed() > 0 else 0
+            ray.drawFrameCentredVector(ray_index * self.ray_angle, amplitude=amp, gain=1 - radius, colour=col)
+        return True
 
 
 class Octaviser(Frame, Spectrum):
-    def __init__(self, parent, channel, scalers=None, align=('left', 'bottom'), theme=None):
-        self.channel = channel
-        Frame.__init__(self, parent, scalers=scalers, align=align)
+    """Concentric radial octave arcs."""
+    def __init__(
+        self,
+        parent,
+        channel: Channel | str = Channel.MONO,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[SpectrumStyle] = None,
+        ballistics: Optional[FFTBallistics] = None
+    ):
+        self.channel = Channel.from_str(str(channel))
+        self.ballistics = ballistics
+        self.spectrum_style = visuals if visuals is not None else SpectrumStyle()
+
+        resolved_config = config if config is not None else FrameConfig(align=('left', 'bottom'))
+        super().__init__(parent, config=resolved_config)
+
         self.configure()
 
     def configure(self):
-        Spectrum.__init__(self, self.w, barsize_pc=5)
-        self.num_octaves=len(self.octaves)
-        self.arcs = ArcsOctaves(self.parent, theme='rainbow', NumOcts=self.num_octaves)
-
-    def update_screen(self):
-        fft = self.read(self.channel)
-
-        for octave in range(1, self.num_octaves):
-            self.arcs.draw(octave, fft[self.octaves[octave-1]:self.octaves[octave]])
-            # print(bin, self.octaves[octave]) #, fft[bin:self.octaves[octave]])
-
-        
+        Spectrum.__init__(
+            self,
+            self.w,
+            barsize_pc=5,
+            ballistics=self.ballistics,
+            platform=self.platform
+        )
+        self.num_octaves = len(self.octaves)
+        self.arcs = ArcsOctaves(self, config=self.config, NumOcts=self.num_octaves)
 
 
-"""
-Spectrum Analyser Frames - variants on
-    1. Full frame - mono
-    2. Horz Split screen
-    3. Horz Split screen - right flipped
-    4. Vert split - L/R
-    5. Full frame, right channel offset
-
-    SpectrumFrame API:
-    # def __init__(self, parent, channel, scale, align=('left','bottom'), right_offset=0, theme='std', flip=False, \
-    #                 led_h=5, led_gap=1, peak_h=1, radius=0, barsize_pc=0.5, barw_min=12, barw_max=20, tip=False, decay=DECAY):
-"""
-
-
-        
-
-class SpectrumStereoFrame(Frame): #""" Horz Split screen - right flipped 'Apple Style' """
-    # THis is vertically aligned, with one flipped
-    def __init__(self, parent, scalers=None, align=None, config=None) :
-        Frame.__init__(self, parent, scalers=scalers, align=align, config=config)
-
-        bar = BarStyle(flip=False, led_gap=2, peak_h=0, radius=2,colour_mode='vert')
-        col = ColFramer(self)
-
-        col += SpectrumFrame(col, 'left',  config=FrameConfig(theme='rainbow', background=None),
-                              spectrum_style=SpectrumStyle(barw_min=10, barsize_pc=0.4,flip=True, bar_style=bar) )
-        col += SpectrumFrame(col, 'right', config=FrameConfig(theme='rainbow', background=None),
-                               spectrum_style=SpectrumStyle(barw_min=10, barsize_pc=0.4, bar_style=bar)  )        
-
-class SpectrumStereoLRFrame(Frame): #""" Horz Split screen - LED Style right flipped  """
-    # THis is vertically aligned, with one flipped
-    def __init__(self, parent, scalers, align) :
-        Frame.__init__(self, parent, scalers=scalers, align=align)
-        bar=BarStyle(flip=True, led_gap=1, peak_h=1, radius=2)
-        self += SpectrumFrame(self, 'right', config=FrameConfig(scalers=(1.0, 0.5), align=('left','top')    ), spectrum_style=SpectrumStyle(barw_min=12, bar_style=bar), theme='white' )
-        self += SpectrumFrame(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('left','bottom')) , spectrum_style=SpectrumStyle(barw_min=12, bar_style=bar), theme='red' )
-        
-
-class SpectrumStereoSplitFrame(Frame): #""" Horz Split screen - right flipped """
-    # This is vertically aligned
-    def __init__(self, parent, scalers=None, align=None, config=None) :
-        Frame.__init__(self, parent, config=config,scalers=scalers, align=align)
-        rows = RowFramer(self)
-        bar_style=BarStyle(led_gap=0, flip=False, tip=True)
-        rows += SpectrumFrame(rows, 'right', config=FrameConfig(scalers=(1.0, 0.5), align=('left','top')    ), spectrum_style=SpectrumStyle(barw_min=5, barsize_pc=0.5, bar_style=bar_style) )
-        bar_style=BarStyle(led_gap=0, flip=True, tip=True)
-        rows += SpectrumFrame(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('left','bottom')) ,  spectrum_style=SpectrumStyle(barw_min=5, barsize_pc=0.5, bar_style=bar_style) )
-        
-
-class SpectrumStereoOffsetFrame(Frame):
-    def __init__(self, parent, config=None,scalers=None, align=None) :
-        Frame.__init__(self, parent, config=config, scalers=scalers, align=align)
-        self += SpectrumFrame(self, 'right', config=FrameConfig(scalers=(1.0, 1.0), align=('left','top'), theme='red', background=None),   
-                              spectrum_style=SpectrumStyle(barw_min=8, barsize_pc=1.5, 
-                                    bar_style=BarStyle(led_gap=0, tip=True,right_offset=2,),))
-        self += SpectrumFrame(self, 'left', config=FrameConfig(scalers=(1.0, 1.0), align=('left','bottom'),theme='blue',background=None), 
-                              spectrum_style=SpectrumStyle(barw_min=8, barsize_pc=1.5, bar_style=BarStyle(led_gap=0, tip=True) )  )
+    def update_screen(self, audio=None, media=None):
+        self.read(self.channel, audio_snapshot=audio)
+        # Delegate draw to arcs
+        return True
 
 
 class StereoSpectrumFrame(Frame):
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, **kwargs)
+    """Dual-channel vertical split spectrum analyzer."""
+    def __init__(
+        self,
+        parent,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[SpectrumStyle] = None,
+        ballistics: Optional[FFTBallistics] = None
+    ):
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
+        self.spectrum_style = visuals if visuals is not None else SpectrumStyle(barw_min=15, barsize_pc=0.5)
+        self.ballistics = ballistics
+        self.configure()
 
-        self += SpectrumFrame(self,  'right', config=FrameConfig(scalers=(1.0, 0.5), align=('left','top')), 
-                              spectrum_style=SpectrumStyle(barw_min=15, barsize_pc=0.5, 
-                              bar_style=BarStyle(led_gap=5, peak_h=3, radius=0 )), **kwargs)
-        self += SpectrumFrame(self,  'left', config=FrameConfig(scalers=(1.0, 0.5), align=('left','bottom')) , 
-                              spectrum_style=SpectrumStyle(barw_min=15, barsize_pc=0.5, 
-                              bar_style=BarStyle(led_gap=5, peak_h=3, radius=0)), **kwargs )
+    def configure(self):
+        style_r = SpectrumStyle(
+            barsize_pc=self.spectrum_style.barsize_pc,
+            barw_min=self.spectrum_style.barw_min,
+            bar_style=BarStyle(led_gap=5, peak_h=3, radius=0)
+        )
+        style_l = SpectrumStyle(
+            barsize_pc=self.spectrum_style.barsize_pc,
+            barw_min=self.spectrum_style.barw_min,
+            bar_style=BarStyle(led_gap=5, peak_h=3, radius=0)
+        )
+        self += SpectrumFrame(
+            self,
+            channel=Channel.RIGHT,
+            config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'top')),
+            visuals=style_r,
+            ballistics=self.ballistics
+        )
+        self += SpectrumFrame(
+            self,
+            channel=Channel.LEFT,
+            config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'bottom')),
+            visuals=style_l,
+            ballistics=self.ballistics
+        )
+
+    def update_screen(self, audio=None, media=None):
+        self.draw_outline()
+        self.draw_background()
+        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
+        for f in draw_list:
+            f.draw_outline()
+            f.draw_background()
+            f.update_screen(audio=audio, media=media)
+        return True
 
 
+class Spectrum2chFrame(Frame):
+    """Dual-channel side-by-side vertical split spectrum."""
+    def __init__(
+        self,
+        parent,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[SpectrumStyle] = None,
+        ballistics: Optional[FFTBallistics] = None
+    ):
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
+        self.spectrum_style = visuals
+        self.ballistics = ballistics
+        self.configure()
+
+    def configure(self):
+        from pyvisualiser.core.framecore import ColFramer
+        cols = ColFramer(self, col_ratios=(1, 1), config=FrameConfig(scalers=(0.7, 0.7), padding=10))
+        cols += SpectrumFrame(cols, channel=Channel.LEFT, visuals=self.spectrum_style, ballistics=self.ballistics)
+        cols += SpectrumFrame(cols, channel=Channel.RIGHT, visuals=self.spectrum_style, ballistics=self.ballistics)
+
+    def update_screen(self, audio=None, media=None):
+        self.draw_outline()
+        self.draw_background()
+        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
+        for f in draw_list:
+            f.draw_outline()
+            f.draw_background()
+            f.update_screen(audio=audio, media=media)
+        return True
+        

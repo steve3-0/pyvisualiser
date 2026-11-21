@@ -16,6 +16,8 @@ from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.visualisers.oscillogramme import *
 from pyvisualiser.core.framecore import Frame, ColFramer, RowFramer
 
+from test_spectrum import *
+
 PI = 3.14159265358979323846
 
 """

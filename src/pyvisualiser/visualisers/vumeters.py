@@ -10,7 +10,9 @@ Mar 2026 Baloothebear4. v1.0
 from    pyvisualiser.core.framecore  import Frame, get_asset_path, Smoother, RowFramer, ColFramer
 from    pyvisualiser.core.components import Text, Line, Image, Bar
 from    pyvisualiser.core.state      import AudioSnapshot
-from    pyvisualiser.styles.presets  import Centred, PI
+from    pyvisualiser.core.frame_config import FrameConfig, Centred, PI
+from    pyvisualiser.core.base_defs  import Channel
+
 from    pyvisualiser.styles.styles   import *
 from    pyvisualiser.styles.profiles import ProfileManager
 from    pyvisualiser.styles.ballistics import MeterBallistics
@@ -88,101 +90,54 @@ class VU:
 Analogue VU Meter frames
 """
 class VUMeter(Frame):
-    """
-        Background for the VU Meter comprising
-        - a horiziontal line
-        - calibrated dB level markers
-        - a needle base
-        - optional arc
-        - optional background image
-    """
-
     def __init__(
-            self,
-            parent,
-            channel,
-            scalers=None,
-            align=Centred,
-            outline=None,
-            square=False,
-            background=None,
-            padding=0,
-            style: VUMeterStyle = None,
-            ballistics: Optional[MeterBallistics] = None,
-            z_order=0,
-            config=None,
-            **kwargs
-        ):
-            self.channel = str(channel)
-            self.ballistics = ballistics
+        self,
+        parent,
+        channel: Channel | str = Channel.LEFT,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[VUMeterStyle] = None,
+        ballistics: Optional[MeterBallistics] = None
+    ):
+        self.channel = Channel.from_str(str(channel))
+        self.ballistics = ballistics
 
-            profile = ProfileManager.get_profile()
-            self.style = style if style is not None else profile.get_style('vu_meter')
-            if self.style is None:
-                self.style = VUMeterStyle()
+        profile = ProfileManager.get_profile()
+        self.style = visuals if visuals is not None else profile.get_style('vu_meter')
+        if self.style is None:
+            self.style = VUMeterStyle()
 
-            align_channel = channel if channel in ('left', 'right') else align[0]
-
-            super().__init__(
-                parent,
-                scalers=scalers,
-                align=(align_channel, align[1]),
-                theme=self.style.theme,
-                background=background,
-                square=square,
-                outline=outline,
-                padding=padding,
-                z_order=z_order,
-                config=config,
-                **kwargs
-            )
-            self.configure()
+        # resolved_config = config if config is not None else FrameConfig(theme=self.style.theme)
+        super().__init__(parent, config=config)
+        self.configure()
 
     def configure(self):
-        """
-        Re-entrant method to generate all visual components based on the 
-        current frame canvas geometry (self.abs_wh).
-        """
-        self.shape  = self.abs_wh
+        self.shape = self.abs_wh
         
-        # Pull required configs locally for cleaner code
-        cfg   = self.config
-        style = self.style
-        
-        # Always set the pivot scale for the frame so abs_centre() is correct for the pivot cover
-        radius = self.abs_h * (0.5 - style.pivot)
-        self.anglescale(radius, style.endstops, style.pivot)
+        radius = self.abs_h * (0.5 - self.style.pivot)
+        self.anglescale(radius, self.style.endstops, self.style.pivot)
 
-        # --- Background Setup (Image or Vector) ---
-        if style.texture_path is not None:
-            self.path     = get_asset_path('VU Images', style.texture_path)
-            self.bgdimage = Image(self, align=('centre', 'middle'), path=self.path, outline=cfg.outline, opacity=int(style.texture_opacity*255))
-            # Image.__init__ should add the Image to self.frames, so VUMeter is a parent
-        
+        if self.style.texture_path is not None:
+            self.path = get_asset_path('VU Images', self.style.texture_path)
+            self.bgdimage = Image(self, align=('centre', 'middle'), path=self.path, outline=self.config.outline, opacity=int(self.style.texture_opacity * 255))
         else:
-            # Vector Background Setup
             self.path = None
+            current_marks = self.style.scale.marks if self.style.scale and self.style.scale.marks is not None else {}
+            current_arcs = self.style.scale.arcs if self.style.scale and self.style.scale.arcs is not None else {}
+            current_annotate = self.style.scale.annotate if self.style.scale and self.style.scale.annotate is not None else {}
 
-            # Resolve scale components
-            current_marks = style.scale.marks if style.scale and style.scale.marks is not None else {}
-            current_arcs = style.scale.arcs if style.scale and style.scale.arcs is not None else {}
-            current_annotate = style.scale.annotate if style.scale and style.scale.annotate is not None else {}
-
-            # Add Text objects for scales (marks)
             self.scales = {
                 mark: Text(self, text=current_marks[mark]['text'], 
                                colour=current_marks[mark]['colour'],
-                               fontmax=self.abs_h * style.scale.font_height,
-                               endstops=style.endstops,
-                               centre_offset=style.pivot,
-                               radius=radius * style.scale.scale_radius,
+                               fontmax=self.abs_h * self.style.scale.font_height,
+                               endstops=self.style.endstops,
+                               centre_offset=self.style.pivot,
+                               radius=radius * self.style.scale.scale_radius,
                                reset=False)
-                    for mark in current_marks
+                for mark in current_marks
             }
             
-            # Add dB Annotation
             if current_annotate and current_annotate.get('text'):
-                self.dB = Text(self, fontmax=self.abs_h * style.scale.font_height * 2,
+                self.dB = Text(self, fontmax=self.abs_h * self.style.scale.font_height * 2,
                                text=current_annotate.get('text', ''),
                                justify=('centre', current_annotate.get('Valign', 'middle')),
                                colour=current_annotate.get('colour', 'mid'),
@@ -190,30 +145,23 @@ class VUMeter(Frame):
             else:
                 self.dB = None
             
-            # Add Ticks (Line)
-            self.ticks = Line(self, width=style.scale.tick_width, endstops=style.endstops, colour=style.scale.tick_colour,
-                              tick_pc=style.scale.tick_radius_pc, centre_offset=style.pivot, 
-                              radius=radius * style.scale.tick_length, theme=style.theme)
+            self.ticks = Line(self, width=self.style.scale.tick_width, endstops=self.style.endstops, colour=self.style.scale.tick_colour,
+                              tick_pc=self.style.scale.tick_radius_pc, centre_offset=self.style.pivot, 
+                              radius=radius * self.style.scale.tick_length)
             
-            # Add Arcs (Line objects)
             self.arclines = []
             if current_arcs:
                 for rad_pc, arc in current_arcs.items():
                     self.arclines.append(
                         Line(self, width=arc['width'], colour=arc['colour'],
-                             endstops=style.endstops, tick_pc=style.scale.tick_radius_pc,
-                             centre_offset=style.pivot, radius=radius * rad_pc, theme=style.theme)
+                             endstops=self.style.endstops, tick_pc=self.style.scale.tick_radius_pc,
+                             centre_offset=self.style.pivot, radius=radius * rad_pc)
                     )
-            
-            # NOTE: Text and Line objects must add themselves to self.frames in their __init__
 
-        # Needle motion tracking
-        effective_ballistics = self.ballistics
-        if effective_ballistics is None:
-            effective_ballistics = MeterBallistics(
-                decay_rate=style.decay,
-                smoothing_samples=style.smooth
-            )
+        effective_ballistics = self.ballistics if self.ballistics is not None else MeterBallistics(
+            decay_rate=self.style.decay,
+            smoothing_samples=self.style.smooth
+        )
 
         self.VU = VU(
             self.platform,
@@ -221,20 +169,15 @@ class VUMeter(Frame):
             ballistics=effective_ballistics
         )
         
-        # Needle Line
-        self.needle = Line(self, width=style.needle.width, tick_pc=style.needle.radius_pc, 
-                           centre_offset=style.pivot, endstops=style.endstops, 
-                           radius=radius * style.needle.length, theme=style.theme, 
-                           colour=style.needle.colour)
+        self.needle = Line(self, width=self.style.needle.width, tick_pc=self.style.needle.radius_pc, 
+                           centre_offset=self.style.pivot, endstops=self.style.endstops, 
+                           radius=radius * self.style.needle.length, 
+                           colour=self.style.needle.colour)
         
-        # Peak Line
-        self.peak  = Line(self, width=style.needle.width, tick_pc=style.needle.radius_pc, 
-                         centre_offset=style.pivot, endstops=style.endstops, 
-                         radius=radius * style.needle.length, theme=style.theme, 
+        self.peak = Line(self, width=self.style.needle.width, tick_pc=self.style.needle.radius_pc, 
+                         centre_offset=self.style.pivot, endstops=self.style.endstops, 
+                         radius=radius * self.style.needle.length, 
                          colour='alert')
-        
-        # The Line objects should also add themselves to self.frames.    
-        # print("VUMeter.configure>", self.__str__())
 
     def update_screen(self):
         # self.draw_background(True)
@@ -372,64 +315,36 @@ class VUMeter(Frame):
                                                      level=min(1.0, shine_level), axis=1.0)
 
 
-"""
-Digital VU Bar Frames
-"""
 
+
+""" Digital Bar VU"""
 class VUFrame(Frame):
-    """
-        Displays a vertical or horizontal bar with changing colours at the top
-        - limits is an array of points where colour changes occur: [level (%), colour] eg [[0, 'grey'], [0.8,'red'], [0.9],'purple']
-        - sits within a screen to compile two together
-        - uses full screen height
+    def __init__(
+        self,
+        parent,
+        channel: Channel | str = Channel.LEFT,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[BarStyle] = None,
+        ballistics: Optional[MeterBallistics] = None
+    ):
+        self.channel = Channel.from_str(str(channel))
+        self.ballistics = ballistics
+        self.bar_style = visuals if visuals is not None else BarStyle()
 
-        Creates a bar, centred in a Frame as a % of the Frame width
-    """
-    def __init__(self, parent, channel, scalers=None, align=None, theme=None, background=None, \
-                 barsize_pc=0.7, flip=False, outline=None,square=False, \
-                 peak_h=1, barw_min=10, barw_max=400, tip=False, decay=0.3, orient='vert', \
-                 bar_style=None, config=None):
-
-        profile      = ProfileManager.get_profile()
-        self.channel = channel
-        self.bar_style = bar_style if bar_style is not None else profile.get_style('bar')
-        self.barsize_pc = barsize_pc
-
-        # if bar_style is None:
-        #     bar_style = profile.get_style('bar')
-        #     if bar_style is None:
-        #         bar_style = BarStyle(peak_h=peak_h, flip=flip, orient=orient)
-
-        # 1. Capture all configuration parameters into self.config
-        # self.config = {
-        #     'channel': channel, 'barsize_pc':barsize_pc, 'flip':flip, \
-        #     'peak_h':peak_h, 'barw_min':barw_min, 'barw_max':barw_max, \
-        #     'tip':tip, 'decay':decay, 'orient':orient, \
-        #     'bar_style': bar_style
-        # }
-
-        Frame.__init__(self, parent, scalers=scalers, align=align,theme=theme,background=background, outline=outline,square=square)
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
         self.configure()
 
     def configure(self):
-        self.barw   = self.abs_w * self.barsize_pc if self.bar_style.orient == 'vert' else self.abs_h * self.barsize_pc   # width of the bar
-        box         = (self.barw, self.h) if self.bar_style.orient == 'vert' else (self.w, self.barw)
-        self.bar    = Bar(self, align=('centre', 'middle'), box_size=box, \
-                        bar_style=self.bar_style)
-        # self += self.bar
-        self.VU     = VU(self.platform, self.channel, self.bar_style.effects.decay)
-        # print("VUFrame._configure> box=%s, flip=%d, orient %s, frame> %s" % (box, self.config['flip'], self.config['orient'], self.geostr()))
+        box = (self.abs_w * self.bar_style.barsize_pc, self.abs_h) if self.bar_style.orient == 'vert' else (self.abs_w, self.abs_h * self.bar_style.barsize_pc)
+        # self.bar = Bar(self, align=('centre', 'middle'), box_size=box, bar_style=self.bar_style)
+        self.bar = Bar(self, config=FrameConfig(align=('centre', 'middle')), box_size=box, bar_style=self.bar_style)
+        effective_ballistics = self.ballistics if self.ballistics is not None else MeterBallistics()
+        self.VU = VU(self.platform, self.channel, ballistics=effective_ballistics)
 
-    def update_screen(self):
-        # barw   = self.w * self.config['barsize_pc'] if self.config['orient'] == 'vert' else self.h * self.config['barsize_pc']  
-        # if barw != self.barw:
-        #     self.bar.resize( (self.barw, self.h) if self.config['orient'] == 'vert' else (self.w, self.barw))
-        #     self.barw = barw
-
-        height, peaks = self.VU.read()
-        # self.draw_background(True)
-        self.bar.draw( 0, height, self.barw, peaks)
-        # print("VUFrame.update>")
+    def update_screen(self, audio=None, media=None):
+        height, peaks = self.VU.read(audio_snapshot=audio)
+        self.bar.draw(0, height, self.barw if hasattr(self, 'barw') else self.w, peaks)
         return True
     
 
@@ -473,50 +388,106 @@ class VUMeterImageFrame(Frame):
 
 
 class VU2chFrame(Frame):
-    def __init__(self, parent, scalers=None, align=None, orient='vert', flip=False, led_h=5, led_gap=1,barsize_pc=0.7, theme=None, outline=None,background={'colour':'background', 'per_frame_update':True}, **kwargs):
-        
-        # Separate Frame args from VUFrame args to prevent TypeError in Frame.__init__
-        frame_keys = ['square', 'padding', 'z_order']
-        frame_kwargs = {k: kwargs.pop(k) for k in frame_keys if k in kwargs}
+    """Stereo dual-channel level bar meter."""
+    def __init__(
+        self,
+        parent,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[BarStyle] = None,
+        ballistics: Optional[MeterBallistics] = None
+    ):
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
+        self.bar_style = visuals if visuals is not None else BarStyle()
+        self.ballistics = ballistics
+        self.configure()
 
-        Frame.__init__(self, parent, scalers=scalers, align=align, theme=theme,outline=outline,background=background,**frame_kwargs)
-        # def VUVFrame(self, platform, bounds, channel, scalers=None, align=('left','bottom'), barsize_pc=0.7, theme='std', flip=False, \
-        #                 led_h=5, led_gap=1, peak_h=1, col_mode='h', radius=0, barw_min=10, barw_max=200, tip=False, decay=DECAY):
-        self.orient     = orient
-        self.flip       = flip 
-        self.led_h      = led_h
-        self.led_gap    = led_gap
-        self.barsize_pc = barsize_pc
-        self.background = background
+    def configure(self):
+        if self.bar_style.orient == 'horz':
+            self += VUFrame(
+                self,
+                channel=Channel.LEFT,
+                config=FrameConfig(scalers=(1.0, 0.5), align=('centre', 'top')),
+                visuals=self.bar_style,
+                ballistics=self.ballistics
+            )
+            self += VUFrame(
+                self,
+                channel=Channel.RIGHT,
+                config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'bottom')),
+                visuals=self.bar_style,
+                ballistics=self.ballistics
+            )
+        else:
+            self += VUFrame(
+                self,
+                channel=Channel.LEFT,
+                config=FrameConfig(scalers=(0.5, 1.0), align=('left', 'middle')),
+                visuals=self.bar_style,
+                ballistics=self.ballistics
+            )
+            self += VUFrame(
+                self,
+                channel=Channel.RIGHT,
+                config=FrameConfig(scalers=(0.5, 1.0), align=('right', 'bottom')),
+                visuals=self.bar_style,
+                ballistics=self.ballistics
+            )
 
-        if self.orient=='horz':
-            self += VUFrame(self, 'left',  align=('centre','top'), scalers=(1.0, 0.5), bar_style=BarStyle(orient=self.orient, flip=self.flip), background=self.background)
-            self += VUFrame(self, 'right', align=('left','bottom'), scalers=(1.0, 0.5), bar_style=BarStyle(orient=self.orient, flip=self.flip), background=self.background)
-        else:     # Vertical
-            self += VUFrame(self, 'left', align=('left','middle'), scalers=(0.5, 1.0), bar_style=BarStyle(orient='vert', flip=self.flip, led_h=self.led_h, led_gap=self.led_gap),barsize_pc=self.barsize_pc, background=None)
-            self += VUFrame(self, 'right', align=('right','bottom'), scalers=(0.5, 1.0), bar_style=BarStyle(orient='vert', flip=self.flip, led_h=self.led_h, led_gap=self.led_gap),barsize_pc=self.barsize_pc, background=None)
-        # self.always_draw_background()
+    def update_screen(self, audio=None, media=None):
+        self.draw_outline()
+        self.draw_background()
+        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
+        for f in draw_list:
+            f.draw_outline()
+            f.draw_background()
+            f.update_screen(audio=audio, media=media)
+        return True
+
 
 class VUFlipFrame(Frame):
-    def __init__(self, parent, scalers=None, align=None, orient='vert', flip=False,theme=None, outline=None,background=None, bar_style=BarStyle(), **kwargs):
-        Frame.__init__(self, parent, scalers=scalers, align=align, outline=outline,background=background, theme=theme)
-        self.orient = orient
+    """Stereo level bar meter where channels grow away from or towards each other."""
+    def __init__(
+        self,
+        parent,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[BarStyle] = None,
+        ballistics: Optional[MeterBallistics] = None,
+        flip_order: tuple[bool, bool] = (True, False)
+    ):
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
+        self.bar_style = visuals if visuals is not None else BarStyle()
+        self.ballistics = ballistics
+        self.flip_order = flip_order
+        self.configure()
 
-        led_h =1
-        # def VUVFrame(self, platform, bounds, channel, scalers=None, align=('left','bottom'), barsize_pc=0.7, theme='std', flip=False, \
-        #                 led_h=5, led_h=1, peak_h=1, col_mode='h', radius=0, barw_min=10, barw_max=200, tip=False, decay=DECAY):
-        flip = (False, True) if flip else (True,False)
-        if self.orient=='horz':
-            cols = ColFramer(self)
-            cols += VUFrame(cols, 'left', bar_style=BarStyle(orient=self.orient, flip=flip[0], tip=False, led_h=led_h))
-            cols += VUFrame(cols, 'right', bar_style=BarStyle(orient=self.orient, flip=flip[1], tip=False, led_h=led_h))
+    def configure(self):
+        import dataclasses
+        from pyvisualiser.core.framecore import ColFramer, RowFramer
 
-        else:     # Vertical
-            rows = RowFramer(self)
-            rows += VUFrame(rows, 'left', bar_style=BarStyle(orient='vert', flip=flip[0], led_h=led_h), theme=self.theme )
-            rows += VUFrame(rows, 'right',bar_style=BarStyle(orient='vert', flip=flip[1], led_h=led_h), theme=self.theme)
+        flip_l, flip_r = self.flip_order
+        style_l = dataclasses.replace(self.bar_style, flip=flip_l)
+        style_r = dataclasses.replace(self.bar_style, flip=flip_r)
 
+        if self.bar_style.orient == 'horz':
+            cols = ColFramer(self, col_ratios=(1, 1), config=FrameConfig.default())
+            cols += VUFrame(cols, channel=Channel.LEFT, visuals=style_l, ballistics=self.ballistics)
+            cols += VUFrame(cols, channel=Channel.RIGHT, visuals=style_r, ballistics=self.ballistics)
+        else:
+            rows = RowFramer(self, row_ratios=(1, 1), config=FrameConfig.default())
+            rows += VUFrame(rows, channel=Channel.LEFT, visuals=style_l, ballistics=self.ballistics)
+            rows += VUFrame(rows, channel=Channel.RIGHT, visuals=style_r, ballistics=self.ballistics)
 
+    # def update_screen(self, audio=None, media=None):
+    #     self.draw_outline()
+    #     self.draw_background()
+    #     draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
+    #     for f in draw_list:
+    #         f.draw_outline()
+    #         f.draw_background()
+    #         f.update_screen(audio=audio, media=media)
+    #     return True
 
 class VUHorzFrame(Frame):
     def __init__(self, parent, channel, **kwargs):
@@ -525,7 +496,7 @@ class VUHorzFrame(Frame):
         # frame_kwargs = {k: kwargs[k] for k in frame_keys if k in kwargs}
         # vu_kwargs = {k: v for k, v in kwargs.items() if k not in frame_keys}
 
-        Frame.__init__(self, parent, **kwargs)
+        Frame.__init__(self, parent)
         cols = ColFramer(self, col_ratios=(1,3))
         # cols = self
         channel_text = ' L' if channel=='left' else ' R'
@@ -547,9 +518,11 @@ class VU2chHorzFrame(Frame):
     def __init__(self, parent, tip=False, frameconfig=None, style=None, **kwargs):
         # Pass the FrameConfig object directly to the parent Frame constructor 
         # using your existing bridge layer (config=frameconfig)
-        super().__init__(parent, config=frameconfig, **kwargs)
+        super().__init__(parent, config=frameconfig)
 
         # Pass style, tip, and component-specific arguments down to the subframes
-        rows = RowFramer(self)
-        rows += VUHorzFrame(rows, 'left', tip=tip, style=style, **kwargs)
-        rows += VUHorzFrame(rows, 'right', tip=tip, style=style, **kwargs)
+        # rows = RowFramer(self)
+        # rows += VUHorzFrame(rows, 'left', tip=tip, style=style, **kwargs)
+        # rows += VUHorzFrame(rows, 'right', tip=tip, style=style, **kwargs)
+
+        self += VUFrame(self, channel='left', visuals=style)

@@ -11,8 +11,9 @@ v2.1 baloothebear4 Nov 2026     Static font cache manager & rendered surface cac
 """
 from  pyvisualiser.core.framecore import Frame, Cache, Colour, get_asset_path
 from  pyvisualiser.styles.styles import *
-from pyvisualiser.styles.profiles import ProfileManager
+from  pyvisualiser.styles.profiles import ProfileManager
 from  pyvisualiser.core.render import OutlineBlurPass
+from  pyvisualiser.core.frame_config import FrameConfig
 
 import pygame
 from   pygame.locals import *
@@ -64,10 +65,15 @@ class Bar(Frame):
         - left or right
         - peak lines
     """
-    def __init__(self, parent, scalers=None, align=('centre', 'bottom'), theme=None,
+    # def __init__(self, parent, scalers=None, align=('centre', 'bottom'), theme=None,
+    #              box_size=(100, 100), bar_style=None):
+
+    #     Frame.__init__(self, parent, align=align, theme=theme, scalers=scalers)
+
+    def __init__(self, parent, config:Optional[FrameConfig] = None, 
                  box_size=(100, 100), bar_style=None):
 
-        Frame.__init__(self, parent, align=align, theme=theme, scalers=scalers)
+        Frame.__init__(self, parent, config=config)
         self.resize(box_size)
 
         profile = ProfileManager.get_profile()
@@ -508,10 +514,12 @@ class Image:
 
 class ArcsOctaves(Frame):
     """ Lines are for drawing meter needles, oscilogrammes etc """
-    def __init__(self, parent, wh=None, colour=None, align=('centre', 'middle'), theme='std', NumOcts=5, scalers=None):
+    def __init__(self, parent, config:Optional[FrameConfig] = None, wh=None, colour=None,  NumOcts=5):
         self.NumOcts = NumOcts
-        Frame.__init__(self, parent, align=align)
-        self.resize(wh)
+
+        resolved_config = config if config is not None else parent.config
+        Frame.__init__(self, parent, config=resolved_config)
+        if wh is not None: self.resize(wh)
 
         self.scalar  = self.h / (NumOcts) / 2
         self.colours = Colour(self.theme, 12)
@@ -537,11 +545,11 @@ class ArcsOctaves(Frame):
 
 
 class Box(Frame):
-    def __init__(self, parent, colour_index=0, theme='std', box=None, width=None, radius=5, align=('centre', 'middle')):
+    def __init__(self, parent, config:Optional[FrameConfig] = None, colour_index=0, box=None, width=None, radius=5):
         self.width    = box[1] if width is None else width
         self.radius   = radius
 
-        Frame.__init__(self, parent, align=align)
+        Frame.__init__(self, parent, config=config)
         if box is not None:  self.resize(box)
 
         self.colour_index = colour_index
@@ -566,7 +574,7 @@ class Box(Frame):
 
 
 class Line(Frame):
-    def __init__(self, parent, colour=None, width=1, align=None, theme=None, scalers=(1.0, 1.0), background=None,
+    def __init__(self, parent, config:Optional[FrameConfig] = None, colour=None, width=1, 
                   circle=True, endstops=(PI / 2, 3 * PI / 2), radius=100, centre_offset=0, tick_pc=1.0, amp_scale=0.9):
 
         self.width     = width
@@ -576,7 +584,7 @@ class Line(Frame):
         self.linespace = []
         self.amp_scale = amp_scale
 
-        Frame.__init__(self, parent, align=align, theme=theme, scalers=scalers, background=background)
+        Frame.__init__(self, parent, config=config)
         self.anglescale(radius, endstops, centre_offset)
 
         self.colour    = colour

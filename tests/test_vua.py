@@ -78,7 +78,7 @@ class VUTestScreen1(Frame):   # comprises volume on the left, spectrum on the ri
 
     def __init__(self, platform):
         back = BackgroundStyle(texture_path='carbonfibre.jpg',texture_opacity=1.0)
-        Frame.__init__(self, platform, background=back, theme= 'meter1', padding=0)
+        Frame.__init__(self, platform, config=FrameConfig(background=back, theme= 'meter1', padding=0))
   
         NEEDLE    = VUNeedleStyle( colour='foreground', width=2, length=0.8, radius_pc=1.0, 
                                   glow_intensity=0.5, glow_colour='dark', tip_glow=True, shadow=True )     
@@ -89,9 +89,9 @@ class VUTestScreen1(Frame):   # comprises volume on the left, spectrum on the ri
         # OUTLINE   = {'colour':'foreground', 'width':5, 'opacity': 255, 'radius': 10}
 
         cols = ColFramer(self, padpc=0.05,padding=30)
-        cols += VUMeter(cols  ,  'left', square=False, style=meter, outline=VUOutline, background=VUBackground)
-        cols += MetaDataFrame(cols,padding=0, background=None, z_order=10)#,outline=OUTLINE)
-        cols += VUMeter(cols  ,  'right', square=False, style=meter, outline=VUOutline, background=VUBackground)
+        cols += VUMeter(cols  ,  'left', config=FrameConfig(square=False, outline=VUOutline, background=VUBackground), visuals=meter)
+        cols += MetaDataFrame(cols, config=FrameConfig(padding=0, background=None, z_order=10))#,outline=OUTLINE)
+        cols += VUMeter(cols  ,  'right', config=FrameConfig(square=False,  outline=VUOutline, background=VUBackground),visuals=meter)
 
 class VUTestScreen2(Frame):   # comprises volume on the left, spectrum on the right
     @property

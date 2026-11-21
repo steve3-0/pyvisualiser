@@ -18,20 +18,16 @@
 
 
 import time
+from   typing import Optional
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
+
 from   pathlib import Path
 import os
 
 from pyvisualiser.styles.colour_palette import COLOUR_THEMES, purple
-from pyvisualiser.styles.presets import BackgroundDefault, PaletteDefault, FullScale, OutlineDefault, Centred
+from pyvisualiser.styles.presets import BackgroundDefault, PaletteDefault, OutlineDefault
 from pyvisualiser.styles.profiles import ProfileManager
-
-
-PI = np.pi
-# from oleddriver import internalOLED     # used for Test purposes
-# from platform   import Platform         # used for Test purposes
+from   pyvisualiser.core.frame_config import FrameConfig, Centred, FullScale, PI
 
 class Geometry():
     def __init__(self, bounds=None, screen_wh=None, scalers=(1.0,1.0), align=Centred, square=False, outline_w=0, padding=0):
@@ -386,7 +382,7 @@ class Geometry():
             new_coords[0] = coords[0] + int((self.abs_rect()[2] - wh[0]))
 
         else:
-            raise ValueError('Geometry.align_coords: expected horz anchor (left, centre, right) found->', align)
+            raise ValueError('Geometry.align_coords: expected horz anchor (left, centre, right) found->', align, align[0], align[1])
         
         # print("Geometry.align_coords >", type(self).__name__, self.h, self.w, coords, new_coords, align, wh)
         return new_coords
@@ -437,20 +433,6 @@ class Geometry():
 
     def anglestr(self):
         return("Geometry.anglestr> centre_offset", self.centre_offset, "min_offset", self.min_offset, "circle_scale", self.circle_scale, "endstops", self.endstops)
-
-    #
-    # def anglerange(self, len, val_pc=0):
-    #     w = self.w
-    #     if len-w/2<0:
-    #         angle_min = 0
-    #     else:
-    #         xmin=w/2
-    #         angle_min = np.arccos(xmin/len)
-    #
-    #     angle = (PI-angle_min) * val_pc
-    #     print("Geometry.anglerange> len %d, val_pc %2.4f, angle %2.2f, angle_min %2.2f" % (len, val_pc, angle, angle_min))
-    #     return angle
-
 
     def normxy(self, xy):
         return (self._bounds[0]+xy[0], self._bounds[1]+xy[1])
@@ -541,75 +523,43 @@ class Frame(Geometry):
     """
 
 
-    def __init__(
-        self,
-        parent,
-        scalers=None,
-        align=None,
-        square=False,
-        theme=None,
-        background=None,
-        outline=None,
-        padding=0,
-        z_order=0,
-        config=None,
-        **kwargs
-    ):
+    def __init__(self, parent, config: Optional[FrameConfig] = None):
         """
-        Initialise a Frame container.
+        Initialise a Frame container strictly via a FrameConfig specification.
+        Child frames automatically inherit theme and context from the parent container.
+        """
+
+        # 1. Resolve configuration or fall back to default
+        self.config = config if config is not None else FrameConfig.default()
         
-        Preferred modern usage:
-            Frame(parent, config=FrameConfig(...))
-            
-        Legacy usage (supported until Phase 6 purge):
-            Frame(parent, scalers=(1.0, 1.0), align=('centre', 'middle'), ...)
-        """
-        from pyvisualiser.core.frame_config import FrameConfig
+        self.scalers = self.config.scalers
+        self.alignment = self.config.align
+        self.square = self.config.square
+        self.padding = self.config.padding
+        self.z_order = self.config.z_order
 
-        # 1. Resolve configuration (Bridge layer)
-        if config is not None:
-            if not isinstance(config, FrameConfig):
-                raise TypeError(f"config must be an instance of FrameConfig, got {type(config).__name__}")
-            resolved_config = config
-        else:
-            # Construct FrameConfig from legacy arguments
-            scalers_val = FullScale if scalers is None else scalers
-            align_val = Centred if align is None else align
-            outline_val = OutlineDefault if outline is None else outline
-            resolved_config = FrameConfig(
-                scalers=scalers_val,
-                align=align_val,
-                square=square,
-                theme=theme,
-                background=background,
-                outline=outline_val,
-                padding=padding,
-                z_order=z_order,
-            )
-
-        self.config = resolved_config
-        self.scalers = resolved_config.scalers
-        self.alignment = resolved_config.align
-        self.square = resolved_config.square
-        self.padding = resolved_config.padding
-        self.z_order = resolved_config.z_order
-
-        # 2. Hierarchy & parent resolution
+        # 2. Hierarchy & Parent Context Inheritance
         if isinstance(parent, Frame):
+            # Sub-frame: scale to parent's inner canvas
             bounds = parent.canvas_coords()
-            self.theme = parent.theme if resolved_config.theme is None else resolved_config.theme
+            
+            # INHERITANCE: If theme is omitted in child config, inherit from parent container
+            self.theme = parent.theme if self.config.theme is None else self.config.theme
             self.platform = parent.platform
-            resolved_background = resolved_config.background
+            
+            # Sub-frames default to no background unless explicitly styled in config
+            resolved_background = self.config.background
         else:
+            # Screen (top-level Frame): scale to display boundary
             bounds = parent.boundary
             self.platform = parent
-            self.theme = PaletteDefault if resolved_config.theme is None else resolved_config.theme
-            resolved_background = (
-                BackgroundDefault if resolved_config.background is None else resolved_config.background
-            )
+            
+            # Top-level screen defaults to theme and default background
+            self.theme = PaletteDefault if self.config.theme is None else self.config.theme
+            resolved_background = BackgroundDefault if self.config.background is None else self.config.background
 
         self.frames = []
-        self.outline_frame = self.platform.create_outline(self, resolved_config.outline)
+        self.outline_frame = self.platform.create_outline(self, self.config.outline)
 
         # 3. Initialise Geometry base
         Geometry.__init__(
@@ -663,18 +613,13 @@ class Frame(Geometry):
         self.draw_outline()
         self.draw_background()
 
-
         # Sort frames by z_order for drawing (lowest first)
         draw_list = sorted(self.frames, key=lambda x: x.z_order)
         for f in draw_list:
             # print("Frame.draw> ", type(f).__name__, "has draw ", hasattr(f, 'draw'), "has undraw ", hasattr(f, 'undraw'))
-
             f.draw_outline()
             f.draw_background()
-
-
-            f.update_screen(**kwargs)  #: self.platform.dirty_mgr.add(tuple(f.abs_rect()))   #<---- fix this in due course
-
+            f.update_screen(**kwargs)  
 
 
     def draw_background(self):
@@ -743,23 +688,21 @@ These Framer classes will override the positional alignments for their axis
 This is dynamic and can rescale Frames dynamically using the col_ratios attribute.  If this is not use then Frames simply are sized equal
 """
 #
-"""--Row and Col Framers to arrange frames intuitively--------------------------"""
-class AxisFramer(Frame):
-    """
+"""--Row and Col Framers to arrange frames intuitively--------------------------
+    
     Generic axis-based framer.  
-    Handles layout along a single axis (x for columns, y for rows).
-    """
-    def __init__(self, parent, ratios=None, axis='x', padpc=0, config=None, **kwargs):
-            if config is not None:
-                super().__init__(parent, config=config, **kwargs)
-            else:
-                super().__init__(parent, **kwargs)
-            self.axis = axis
-            self.padpc = 1 - padpc
-            self.ratios = ratios
-            self._scalers = self._normalize(ratios) if ratios is not None else []
-            self.dynamic_scalers = []
-            self.frames = []
+    Handles layout along a single axis (x for columns, y for rows)."""
+class AxisFramer(Frame):
+    def __init__(self, parent, ratios=None, axis='x', padpc=0, config: Optional[FrameConfig] = None):
+        super().__init__(parent, config=config)
+        self.axis = axis
+        self.padpc = 1 - padpc
+        self.ratios = ratios
+        self._scalers = self._normalize(ratios) if ratios is not None else []
+        self.dynamic_scalers = []
+        self.frames = []
+        # Only add to parent if parent is a Frame container, not a root Platform
+        if isinstance(parent, Frame):
             parent += self
 
     def _normalize(self, values):
@@ -824,13 +767,41 @@ class AxisFramer(Frame):
             current_offset_pc += frame_width_pc + gap_space_pc
 
 class ColFramer(AxisFramer):
-    def __init__(self, parent, col_ratios=None, padpc=0, **kwargs):
-        super().__init__(parent, ratios=col_ratios, axis='x', padpc=padpc, **kwargs)
+    def __init__(
+        self,
+        parent,
+        col_ratios=None,
+        padpc=0,
+        config: Optional[FrameConfig] = None,
+        ratios=None
+    ):
+        effective_ratios = ratios if ratios is not None else col_ratios
+        super().__init__(
+            parent,
+            ratios=effective_ratios,
+            axis='x',
+            padpc=padpc,
+            config=config
+        )
 
 
 class RowFramer(AxisFramer):
-    def __init__(self, parent, row_ratios=None, padpc=0, **kwargs):
-        super().__init__(parent, ratios=row_ratios, axis='y', padpc=padpc, **kwargs)
+    def __init__(
+        self,
+        parent,
+        row_ratios=None,
+        padpc=0,
+        config: Optional[FrameConfig] = None,
+        ratios=None
+    ):
+        effective_ratios = ratios if ratios is not None else row_ratios
+        super().__init__(
+            parent,
+            ratios=effective_ratios,
+            axis='y',
+            padpc=padpc,
+            config=config
+        )
 
 #------------------- End Framers -----------------------------------------------------
 

@@ -59,7 +59,7 @@ from .core.frame_config import FrameConfig  # Unified layout, hierarchy, and sty
 # Visualiser Components
 from .visualisers.vumeters import VUFrame, VUMeter, VU2chFrame, VU2chHorzFrame, VUFlipFrame, VUMeterImageFrame
 from .visualisers.metadata import MetaDataFrame, MetaData, MetaImages, PlayProgressFrame, TextFrame, CircularProgress
-from .visualisers.spectrum import SpectrumFrame, Spectrum, StereoSpectrumFrame, Diamondiser, Octaviser
+from .visualisers.spectrum import SpectrumFrame, Spectrum, Diamondiser, Octaviser
 from .visualisers.oscillogramme import Oscilogramme, OscilogrammeBar, SamplesFrame
 from .visualisers.advanced_frames import EchoWaveFrame, KaleidoscopeFrame, PulseOrbFrame, SpectrumWaveFrame, FreqWaveFrame
 from .visualisers.glvisualisers import ShaderFrame, Kalidoscope, SpectrumMesh
@@ -99,9 +99,7 @@ from .styles.presets import (
     DreamEffect,
     BackgroundDefault,
     PaletteDefault,
-    FullScale,
     OutlineDefault,
-    Centred,
 )
 from .styles.profiles import ProfileManager, ProfileControls, ProfileController
 from .styles.ballistics import MeterBallistics, FFTBallistics
@@ -149,7 +147,6 @@ __all__ = [
     "VUMeterImageFrame",
     "SpectrumFrame",
     "Spectrum",
-    "StereoSpectrumFrame",
     "Diamondiser",
     "Octaviser",
     "Oscilogramme",

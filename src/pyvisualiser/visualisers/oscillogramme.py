@@ -28,126 +28,174 @@ Visualiser Frames create complex responses to the audio:
 
 from    pyvisualiser.core.framecore  import Frame, Smoother
 from    pyvisualiser.core.components import Bar, Text, Line, Box, Image, ArcsOctaves, BarEffects, BarStyle, SpectrumStyle
-from    pyvisualiser.styles.presets  import PI, Centred
+from    pyvisualiser.core.frame_config  import PI, Centred
 from    pyvisualiser.styles.styles   import OscillogrammeStyle, BarStyle
+import numpy as np
+
+"""
+Visualiser classes for time-domain waveforms and oscillogrammes.
+Part of pyvisualiser.
+"""
+
+from typing import Optional, Callable
+from pyvisualiser.core.base_defs import Channel
+from pyvisualiser.core.frame_config import FrameConfig
+from pyvisualiser.core.framecore import Frame, Smoother
+from pyvisualiser.core.components import Bar, Line
+from pyvisualiser.styles.styles import OscillogrammeStyle, BarStyle
 
 
 class OscilogrammeBar(Frame):
     """
-        Displays a vertical bars with changing colours at the top
-        - limits is an array of points where colour changes occur: [level (%), colour] eg [[0, 'grey'], [0.8,'red'], [0.9],'purple']
-        - sits within a screen to compile two together
-        - uses full screen height
-
-        Creates a bar, centred in a Frame as a % of the Frame width
-
-        barsize_pc  - is the percentage of gap to barwidth
-        barw_min    - is the minimum width of a bar
-        led_h       - is the height of one 'LED', when a bar is comprised of lots of LEDs stacked up
-        led_gap     - is the size of the gap between LEDS - 0 means the LEDs are not distinct, but enables amplitude based colours
-        col_mode    - colours change either horizontally across the platform, or vertically with the amplitude of the bar
-        radius      - is curved edges to each LED
-        tip         - is a curved end to the bar
-        decay       - is a time constant for how quickly a bar falls down
+    Displays vertical time-domain sample bars with decay dynamics.
     """
+    def __init__(
+        self,
+        parent,
+        channel: Channel | str = Channel.MONO,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[OscillogrammeStyle] = None,
+        bar_visuals: Optional[BarStyle] = None
+    ):
+        self.channel = Channel.from_str(str(channel))
+        self.oscillograme = visuals if visuals is not None else OscillogrammeStyle()
+        self.bar_style = bar_visuals if bar_visuals is not None else self.oscillograme.bar_style
 
-
-    def __init__(self, parent, channel, scalers=None, align=None, theme=None, background=None, outline=None,
-                 oscillograme = OscillogrammeStyle(), bar_style=BarStyle(), square=False, z_order=0):
-
-        Frame.__init__(self, parent, scalers=scalers, align=align, theme=theme, outline=outline,square=square,\
-                       background=background, z_order=z_order)
-        self.channel        = channel
-        self.parent         = parent
-        self.oscillograme   = oscillograme
-        self.bar_style      = bar_style
-
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
         self.configure()
 
     def configure(self):
-        # print("OscilogrammeBar.__init__> theme %s, parent.theme %s" % (self.theme, self.parent.theme))
-
-        # Calculate how many bars can be drawn in the width available
-        # Go down the bar widths to see what will fit
         for barw in range(self.oscillograme.barw_min, self.oscillograme.barw_max):
-            self.bar_gap    = int(barw * self.oscillograme.barsize_pc)
-            self.bars       = int(self.w/(self.bar_gap+barw))
-            if  self.bars <= self.oscillograme.samplesperframe: break
+            self.bar_gap = int(barw * self.oscillograme.barsize_pc)
+            self.bars = int(self.w / max(1, (self.bar_gap + barw)))
+            if self.bars <= self.oscillograme.samplesperframe:
+                break
 
-        self.barw           = barw
-        self.reduce_by      = 2*self.oscillograme.samplesperframe//self.bars
+        self.barw = barw
+        self.reduce_by = max(1, 2 * self.oscillograme.samplesperframe // max(1, self.bars))
 
-        # Pack out the gaps to make sure the bars + gaps fill the whole width
-        oscillograme_width = self.bars * (self.bar_gap+self.barw)
-        if oscillograme_width < self.width:
-            gaptofill = self.width-oscillograme_width
-            self.bar_gap = self.bar_gap+ gaptofill/self.bars
+        oscillograme_width = self.bars * (self.bar_gap + self.barw)
+        if oscillograme_width < self.w and self.bars > 0:
+            gaptofill = self.w - oscillograme_width
+            self.bar_gap = self.bar_gap + gaptofill / self.bars
 
-        self.current  = [ Smoother(1.0) for i in range(self.bars)]    #array of smoothers
-        # bar_style = BarStyle(led_h=led_h, led_gap=led_gap, flip=flip, radius=radius, tip=tip, colour_mode='horz')
-        self.bar      = Bar(self, box_size=(self.width, self.h), bar_style=self.bar_style)
-        self.decay    = self.oscillograme.decay
-
-        # print("OscilogrammeBar.__init__> width=%s, reduce_by=%d, bars %s, bar_gap %d, barw %d, frame> %s" % (self.width, self.reduce_by, self.bars, self.bar_gap, self.barw, self.geostr()))
-
-
-
+        self.current = [Smoother(1.0) for _ in range(self.bars)]
+        self.bar = Bar(self, box_size=(self.width, self.h), bar_style=self.bar_style)
+        self.decay = self.oscillograme.decay
 
     @property
     def width(self):
-        return self.bars * (self.bar_gap+self.barw)
+        return self.bars * (self.bar_gap + self.barw)
 
-    def update_screen(self):
-        samples =  self.platform.reduceSamples( self.channel, self.reduce_by )
-        for i in range(self.bars):
-            # add the new sample
+    def update_screen(self, audio=None, media=None):
+        if audio is not None and self.channel in audio.samples:
+            raw = audio.samples[self.channel]
+            normalised = raw / 32768.0
+            end = self.reduce_by * (len(normalised) // self.reduce_by)
+            if end > 0:
+                reshaped = normalised[:end].reshape(-1, self.reduce_by)
+                samples = (np.sqrt(np.mean(np.square(reshaped), axis=1)) / 0.2).tolist()
+            else:
+                samples = [0.0] * self.bars
+        else:
+            samples = self.platform.reduceSamples(self.channel, self.reduce_by)
+
+        for i in range(min(self.bars, len(samples))):
             target_height = min(1.0, samples[i])
-            # print(target_height)
-            if target_height > self.current[i].smoothed():
+            smoothed_val = self.current[i].smoothed()
+
+            if target_height >= smoothed_val:
                 self.current[i].add(target_height)
-            
-            # decay the existing ones
-            if self.current[i].smoothed() < self.decay/100.0:
+
+            if smoothed_val < self.decay / 100.0:
                 self.current[i].add(0.0)
             else:
-                self.current[i].add(self.current[i].smoothed()* (1- self.decay))
+                self.current[i].add(smoothed_val * (1.0 - self.decay))
 
             x = i * (self.barw + self.bar_gap)
-            self.bar.draw( x, self.current[i].smoothed(), self.barw, colour_index=x)
+            self.bar.draw(x, self.current[i].smoothed(), self.barw, colour_index=x)
         return True
-        
 
 
 class Oscilogramme(Frame):
     """
-    Draw a frame of samples - scaling the number of samples is the trick to align the frame rate and the sample rate
+    Renders the continuous live modulated audio waveform line.
     """
-    def __init__(self, parent, channel, scalers=None, align=('left', 'bottom'), theme=None, background=None, z_order=0, **kwargs):
-        self.channel = channel
-        Frame.__init__(self, parent, scalers=scalers, align=align, theme=theme, background=background, z_order=z_order)
+    def __init__(
+        self,
+        parent,
+        channel: Channel | str = Channel.MONO,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[OscillogrammeStyle] = None
+    ):
+        self.channel = Channel.from_str(str(channel))
+        self.oscillograme = visuals if visuals is not None else OscillogrammeStyle()
+
+        resolved_config = config if config is not None else FrameConfig(
+            align=('left', 'bottom')
+        )
+        super().__init__(parent, config=resolved_config)
         self.configure()
 
     def configure(self):
-        self.lines   = Line(self, circle=False, amp_scale=0.6)
-        self.resolution = 256 # Limit resolution for performance
-        
+        self.lines = Line(self, circle=False, amp_scale=0.6)
+        self.resolution = 256
 
-    def update_screen(self):
-        # Limit resolution to avoid excessive draw calls (e.g. max 256 segments)
+    def update_screen(self, audio=None, media=None):
         reduceby = max(1, self.platform.framesize // self.resolution)
-        samples =  self.platform.reduceSamples( self.channel, reduceby, rms=False )
-        # self.draw_background(True)
+        if audio is not None and self.channel in audio.samples:
+            raw = audio.samples[self.channel]
+            normalised = raw / 32768.0
+            end = reduceby * (len(normalised) // reduceby)
+            if end > 0:
+                samples = (np.mean(normalised[:end].reshape(-1, reduceby), axis=1) / 0.2).tolist()
+            else:
+                samples = [0.0] * self.resolution
+        else:
+            samples = self.platform.reduceSamples(self.channel, reduceby, rms=False)
+
         self.lines.draw_mod_line(samples, colour='foreground')
         return True
-        
-# Subframe to drawn two spectrums flipped on top        
-class SamplesFrame(Frame):
-    """ Volume/Source on left - Spectrum on left - one channel """
-    def __init__(self, parent, scalers=(1.0, 1.0), align=('centre','middle'), theme='std'):
-        Frame.__init__(self, parent, scalers=scalers, align=align)
-        self.create()
-        
-    def create(self):
-        self += OscilogrammeBar(self,  'left', scalers=(1.0,0.5), align=('left','top'), oscillograme=OscillogrammeStyle(barsize_pc=0.5, barw_min=2), bar_style=BarStyle(led_gap=0))
-        self += OscilogrammeBar(self,  'right', scalers=(1.0,0.5), align=('left','bottom'), oscillograme=OscillogrammeStyle(barsize_pc=0.5, barw_min=2), bar_style=BarStyle(led_gap=0,flip=True, colour_mode='horz'))
 
+
+class SamplesFrame(Frame):
+    """
+    Dual-channel flipped time-domain oscillogramme stack.
+    """
+    def __init__(
+        self,
+        parent,
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[OscillogrammeStyle] = None
+    ):
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
+        self.oscillograme = visuals if visuals is not None else OscillogrammeStyle()
+        self.configure()
+
+    def configure(self):
+        self += OscilogrammeBar(
+            self,
+            channel=Channel.LEFT,
+            config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'top')),
+            visuals=self.oscillograme,
+            bar_visuals=BarStyle(led_gap=0)
+        )
+        self += OscilogrammeBar(
+            self,
+            channel=Channel.RIGHT,
+            config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'bottom')),
+            visuals=self.oscillograme,
+            bar_visuals=BarStyle(led_gap=0, flip=True, colour_mode='horz')
+        )
+
+    def update_screen(self, audio=None, media=None):
+        self.draw_outline()
+        self.draw_background()
+        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
+        for f in draw_list:
+            f.draw_outline()
+            f.draw_background()
+            f.update_screen(audio=audio, media=media)
+        return True

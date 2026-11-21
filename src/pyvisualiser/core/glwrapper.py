@@ -122,14 +122,22 @@ class GLSLFrame(Frame):
         
         import re
         
-        # 1. Get Context
+        # 1. Acquire Context safely
         try:
             gfx = getattr(self.platform, 'gfx_driver', None)
-            if gfx and hasattr(gfx, 'render_context'):
+            if gfx and hasattr(gfx, 'render_context') and gfx.render_context is not None:
                 self.ctx = gfx.render_context.ctx
                 self.render_pass = GLSLRenderPass(gfx.render_context, self)
             else:
+                # Guard: Avoid calling moderngl.get_context() if no OpenGL display is active
+                surface = pygame.display.get_surface()
+                if surface is None or not (surface.get_flags() & pygame.OPENGL):
+                    # Headless or non-OpenGL environment; do not attempt raw GL calls
+                    return
                 self.ctx = moderngl.get_context()
+                
+            if not self.ctx:
+                return
         except Exception as e:
             print(f"GLSLFrame> Context error: {e}")
             return
@@ -227,11 +235,13 @@ vec4 run_pattern(vec2 screenSize, vec2 screen_coords) {{
         """Hook for subclasses to push custom uniforms"""
         pass
 
-    def update_screen(self, full=False):
+    def update_screen(self, audio=None, media=None):
         """Standard pyvisualiser draw hook"""
         if not self.initialized:
             self.init_gl()
-            if not self.initialized: return False
+            if not self.initialized: 
+                super().update_screen(audio=audio, media=media)
+                return  False
 
         if self.render_pass and hasattr(self.platform.gfx_driver, 'compositor'):
             x, y, w, h = self.abs_rect()
@@ -242,7 +252,7 @@ vec4 run_pattern(vec2 screenSize, vec2 screen_coords) {{
             self.platform.gfx_driver.compositor.add_pre_pass(self.render_pass)
             
             # Continue traversal to allowed nested UI elements to draw over the shader
-            super().update_screen(full=full)
+            super().update_screen(audio=audio, media=media)
             return True
         return False
 

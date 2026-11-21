@@ -1,32 +1,28 @@
-'''
-Mar 26. Baloothebear4 v1
+"""
+Mar 2026 Baloothebear4 v1
 
 Collating all the classes that hold the styles of how visualisers work enables:
 - standardisation & consistency
 - use of presets
 - the ability to carefully curate themes or overall profiles for finished visualisers
-
-'''
+"""
 
 from dataclasses import dataclass, field
-from typing import Optional, Union, Any
+from typing import Optional, Union, Tuple, Dict, Any
 
 
-"""
-
-Backgrounds
-
-"""
 @dataclass(frozen=True)
 class VignetteStyle:
     strength: float = 0.0
     radius: float = 0.8
     softness: float = 0.5
 
+
 @dataclass(frozen=True)
 class NoiseStyle:
     strength: float = 0.0
     speed: float = 1.0
+
 
 @dataclass(frozen=True)
 class AmbientGlowStyle:
@@ -35,12 +31,15 @@ class AmbientGlowStyle:
     radius: float = 1.6
     softness: float = 0.8
 
+
 @dataclass(frozen=True)
 class ReactiveGlowStyle:
     colour: str = 'foreground'
     attack: float = 0.5
     decay: float = 0.1
     threshold: float = 0.2
+
+
 @dataclass(frozen=True)
 class PeakAccentStyle:
     colour: str = 'alert'
@@ -48,22 +47,26 @@ class PeakAccentStyle:
     decay: float = 0.5
     threshold: float = 0.9
 
+
 @dataclass(frozen=True)
 class StarfieldStyle:
     density: float = 50.0
     speed: float = 0.5
 
+
 @dataclass(frozen=True)
 class CloudStyle:
-    opacity: float = 0.0 #phow bright this appears
+    opacity: float = 0.0
+
 
 @dataclass(frozen=True)
 class EdgeLightStyle:
     enabled: bool = False
-    intensity: float = 0.3        # overall strength
-    width: float = 0.15           # how far it reaches into screen
-    softness: float = 2.0         # falloff curve
-    audio_reactivity: float = 0.2 # subtle coupling
+    intensity: float = 0.3
+    width: float = 0.15
+    softness: float = 2.0
+    audio_reactivity: float = 0.2
+
 
 @dataclass(frozen=True)
 class BackgroundStyle:
@@ -79,65 +82,51 @@ class BackgroundStyle:
     starfield: Union[StarfieldStyle, bool] = False
     cloud: Union[CloudStyle, bool] = False
     edge_light: Union[EdgeLightStyle, bool] = False
-    shader: Union[str, bool] = False         # any compatable shader can be loaded as a background
+    shader: Union[str, bool] = False
 
-"""
-
-Text
-
-"""
-
-@dataclass(frozen=True)
-class TextStyle:
-    typeface: str = 'Inter/Inter-VariableFont_opsz,wght.ttf'
-    min_size: int = 18
-    max_lines: int = 1
-"""
-
-Images
-
-"""
 
 @dataclass(frozen=True)
 class ReflectionStyle:
     size: float = 0.5
-    opacity: float = 0.2    
-
-
-
-
-"""
-
-Digital Bars & Spectrums
-
-"""
-@dataclass(frozen=True)
-class MeterBallistics:
-    """Motion dynamics and temporal filtering for analogue & digital VU meters."""
-    decay_rate: float = 0.30          # Fractional decay per frame (0.01 to 0.99)
-    peak_decay_rate: float = 0.005    # Fall-off rate for floating peak markers
-    smoothing_samples: int = 10       # Moving average window size for needle inertia
-    peak_hold_frames: int = 30        # Frames to freeze peak before initiating decay
-    overshoot_damping: float = 0.85   # Damping factor for skeuomorphic needle bounce
-
-    def __post_init__(self):
-        if not (0.0 < self.decay_rate < 1.0):
-            raise ValueError(f"decay_rate must be between 0.0 and 1.0, got {self.decay_rate}")
-        if self.smoothing_samples < 1:
-            object.__setattr__(self, "smoothing_samples", 1)
+    opacity: float = 0.2
 
 
 @dataclass(frozen=True)
-class FFTBallistics:
-    """Motion dynamics and temporal filtering for spectrum analysers."""
-    attack_rate: float = 0.90         # Rising responsiveness factor (0.0 to 1.0)
-    decay_rate: float = 0.25          # Falling decay rate per frame
-    peak_decay_rate: float = 0.02     # Floating peak marker decay rate
-    smoothing_factor: float = 0.50    # Temporal blending between consecutive FFT frames
+class ImageStyle:
+    """Aesthetic styling for album art and artist photography."""
+    opacity: float = 1.0
+    reflection: Optional[ReflectionStyle] = None
+    corner_radius: int = 0
+    border_width: int = 0
+    border_colour: str = 'mid'
+    glow_intensity: float = 0.0
+    glow_colour: Optional[str] = None
 
-    def __post_init__(self):
-        if not (0.0 < self.decay_rate < 1.0):
-            raise ValueError(f"decay_rate must be between 0.0 and 1.0, got {self.decay_rate}")
+
+@dataclass(frozen=True)
+class TextStyle:
+    """Complete typographic visual specification."""
+    typeface: str = 'Inter/Inter-VariableFont_opsz,wght.ttf'
+    font_size: Optional[int] = None
+    colour: str = 'foreground'
+    justify: Tuple[str, str] = ('centre', 'middle')
+    wrap: bool = False
+    max_lines: int = 1
+    glow_intensity: float = 0.0
+    min_size: int = 18
+
+
+@dataclass(frozen=True)
+class ShaderStyle:
+    """Aesthetic configuration for emissive GLSL shaders (`ShaderFrame`)."""
+    shader_name: str = 'liquidorb'
+    colour: str = 'mid'
+    speed_multiplier: float = 1.0
+    fold_offset: float = 0.5
+    audio_reactivity: float = 1.0
+    extra_uniforms: Dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass(frozen=True)
 class BarEffects:
     threshold: float = 0.85
@@ -154,44 +143,47 @@ class BarEffects:
     outer_glow_blur_mult: float = 2.5
     reflection: Union[ReflectionStyle, bool] = False
 
+
 @dataclass(frozen=True)
 class BarStyle:
+    barsize_pc: float = 0.7
     led_h: int = 10
     led_gap: int = 4
     peak_h: int = 1
     right_offset: int = 0
-    flip: bool = False #  moves from top to bottom or bottom to top (false = bottom to top, true = top to bottom)
+    flip: bool = False
     radius: int = 0
-    orient: str = 'vert' # orient: 'vert' or 'horz'
+    orient: str = 'vert'
     tip: bool = False
     effects: BarEffects = BarEffects()
     edge_softness: float = 0.0
-    colour_mode: Optional[str] = 'horz' # 'horz', 'vert', 'radial', 'none'
+    colour_mode: Optional[str] = 'horz'
     segment_size: Optional[int] = None
     segment_gap: Optional[int] = None
     corner_radius: Optional[int] = None
 
     def __post_init__(self):
-        # Workaround for mutable fallback logic in a frozen dataclass
         if self.segment_size is None: object.__setattr__(self, 'segment_size', self.led_h)
         if self.segment_gap is None: object.__setattr__(self, 'segment_gap', self.led_gap)
         if self.corner_radius is None: object.__setattr__(self, 'corner_radius', self.radius)
         if self.colour_mode is None: object.__setattr__(self, 'colour_mode', self.orient)
 
+
 @dataclass(frozen=True)
 class SpectrumStyle:
-    barsize_pc: float = 2
+    barsize_pc: float = 0.5
     barw_min: int = 2
     barw_max: int = 50
-    decay: int = 0.4
-    flip: bool = False #plots highs on left, lows on right
+    decay: float = 0.4
+    flip: bool = False
     bar_style: BarStyle = field(default_factory=BarStyle)
 
-"""
 
-Outline
+@dataclass(frozen=True)
+class ProgressStyle:
+    bar_style: BarStyle = field(default_factory=lambda: BarStyle(barsize_pc=0.5, led_gap=0))
+    text_style: TextStyle = field(default_factory=TextStyle)
 
-"""
 
 @dataclass(frozen=True)
 class OutlineStyle:
@@ -204,31 +196,27 @@ class OutlineStyle:
     glow_colour: Optional[str] = None
 
 
-""""
-
-Analogue VU Meters
-
-"""
-
-
-ANNOTATE  = { 'Valign':'middle', 'text':'dB', 'colour':'mid' }
-FONTH     = 0.05
-PIVOT     = -0.5
+# --- Analogue VU Meter Dataclasses ---
+ANNOTATE = {'Valign': 'middle', 'text': 'dB', 'colour': 'mid'}
+FONTH = 0.05
+PIVOT = -0.5
 NEEDLELEN = 0.8
-TICKLEN   = 0.8
+TICKLEN = 0.8
 SCALESLEN = 0.9
-ARCLEN    = TICKLEN
-TICK_PC   = 0.1
-TICK_W    = 3
-MARKS     = {   0.12: {'text':'-20', 'width': TICK_W, 'colour': 'light'},
-                0.3: {'text':'-10', 'width': TICK_W, 'colour': 'light'},
-                0.5: {'text':'-3', 'width': TICK_W, 'colour': 'light'},
-                0.6: {'text':'-1', 'width': TICK_W, 'colour': 'light'},
-                0.7: {'text':'+0', 'width': TICK_W, 'colour': 'light'},
-                0.8: {'text':'+1', 'width': TICK_W*2, 'colour': 'alert'},
-                0.9: {'text':'+3', 'width': TICK_W*2, 'colour': 'alert'}}
+ARCLEN = TICKLEN
+TICK_PC = 0.1
+TICK_W = 3
+MARKS = {
+    0.12: {'text': '-20', 'width': TICK_W, 'colour': 'light'},
+    0.3: {'text': '-10', 'width': TICK_W, 'colour': 'light'},
+    0.5: {'text': '-3', 'width': TICK_W, 'colour': 'light'},
+    0.6: {'text': '-1', 'width': TICK_W, 'colour': 'light'},
+    0.7: {'text': '+0', 'width': TICK_W, 'colour': 'light'},
+    0.8: {'text': '+1', 'width': TICK_W * 2, 'colour': 'alert'},
+    0.9: {'text': '+3', 'width': TICK_W * 2, 'colour': 'alert'}
+}
+ARCS = {ARCLEN * 0.9: {'width': TICK_W - 1, 'colour': 'mid'}}
 
-ARCS      = { ARCLEN*0.9: {'width': TICK_W-1, 'colour': 'mid'} }
 
 @dataclass(frozen=True)
 class VUNeedleStyle:
@@ -240,6 +228,7 @@ class VUNeedleStyle:
     glow_colour: str = 'alert'
     tip_glow: bool = False
     shadow: bool = True
+
 
 @dataclass(frozen=True)
 class VUMeterScale:
@@ -253,41 +242,34 @@ class VUMeterScale:
     scale_radius: float = SCALESLEN
     font_height: float = FONTH
 
-DECAY     = 0.4
-SMOOTH    = 15
+
+DECAY = 0.3
+SMOOTH = 15
 PI = 3.14152
+
 
 @dataclass(frozen=True)
 class VUMeterStyle:
-    endstops: tuple = (3*PI/4, 5*PI/4)
+    endstops: tuple = (3 * PI / 4, 5 * PI / 4)
     pivot: float = PIVOT
     needle: VUNeedleStyle = field(default_factory=VUNeedleStyle)
     scale: VUMeterScale = field(default_factory=VUMeterScale)
-    pivotcoverpc: float = 0.1   # size of circle to cover pivot point
+    pivotcoverpc: float = 0.1
     pivotcovercolour: str = 'dark'
     pivotcoveropacity: float = 1.0
     texture_path: Optional[str] = None
     texture_opacity: float = 1.0
-    theme: str = None
     show_peak: bool = False
     decay: float = DECAY
     smooth: int = SMOOTH
 
 
-"""
-
-Oscilogramme
-
-"""
-
 @dataclass(frozen=True)
 class OscillogrammeStyle:
-    delay: float     = 0.5   # Lower is longer delay - This is the amount that a bar reduces each period
-    samplesperframe: int = 512  # Samples   = 1024  # Samples
+    delay: float = 0.5
+    samplesperframe: int = 512
     barsize_pc: float = 2
     barw_min: int = 2
     barw_max: int = 50
     decay: int = 0.4
-
-
-
+    bar_style: BarStyle = field(default_factory=BarStyle)

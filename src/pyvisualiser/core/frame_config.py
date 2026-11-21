@@ -6,7 +6,7 @@ Strongly-typed, immutable configuration container for layout, hierarchy,
 and styling across all Frame subclasses.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional, Tuple, Union
 from .base_defs import HorizontalAlign, VerticalAlign
 from ..styles.styles import BackgroundStyle, OutlineStyle
@@ -27,6 +27,16 @@ class FrameConfig:
     theme: Optional[str] = None
     background: Optional[BackgroundStyle] = None
     outline: Optional[OutlineStyle] = None
+
+    def change(self, **changes) -> "FrameConfig":
+        """
+        Create a new FrameConfig based on this instance with specified attributes changed.
+        
+        Example:
+            child_config = parent.config.clone(align=('centre', 'middle'), padding=10)
+        """
+        return replace(self, **changes)
+
 
     def __post_init__(self):
         # Validate scalers
@@ -63,3 +73,7 @@ class FrameConfig:
             background=background,
             outline=outline,
         )
+
+FullScale      = (1.0,1.0)
+Centred        = ('centre', 'middle')
+PI             = 3.14159265358979323846    

@@ -2,6 +2,10 @@
 Kaleidoscope Visualiser Frame
 """
 from pyvisualiser.core.glwrapper import GLSLFrame
+from pyvisualiser.core.frame_config import FrameConfig
+from pyvisualiser.styles.styles import ShaderStyle
+from pyvisualiser.styles.profiles import ProfileManager
+from typing import Optional
 import numpy as np
 import moderngl
 import time
@@ -9,36 +13,47 @@ import time
 SHADERS = ["baltro", "cloudflight", "discosun", "kalidoscope", "pinkball", "spiralclouds", "warping","progressdial"]
 ANALYSIS_METADATA = ["beat", "bpm","centroid", "kurtosis","flux","volume"]
 class ShaderFrame(GLSLFrame):
-    def __init__(self, parent, shader="baltro", colour='mid', **kwargs):
-        super().__init__(parent, shader, **kwargs)
-        self.colour = colour
+    def __init__(
+        self,
+        parent,
+        shader: str | ShaderStyle = "liquidorb",
+        config: Optional[FrameConfig] = None,
+        visuals: Optional[ShaderStyle] = None,
+        **kwargs
+    ):
+        if isinstance(shader, ShaderStyle):
+            self.shader_style = shader
+        elif visuals is not None:
+            self.shader_style = visuals
+        elif isinstance(shader, str):
+            self.shader_style = ShaderStyle(shader_name=shader)
+        else:
+            self.shader_style = ShaderStyle()
+
+        super().__init__(parent, shader=self.shader_style.shader_name, config=config, **kwargs)
+        self.colour = self.shader_style.colour
 
     def update_uniforms(self):
         super().update_uniforms()
         if not self.prog: return
 
-        # 1. Map Volume (VU)
         vu = 0.2
         if hasattr(self.platform, 'vu'):
             vu = self.platform.vu['mono']
-        
         if 'u_vu' in self.prog:
-            self.prog['u_vu'].value = float(vu)
-            
-        # 2. Map Bass Frequency Energy
-        # Calculate average of lower bins
-        bass = self.platform.bass * 15
-        
+            self.prog['u_vu'].value = float(vu) * self.shader_style.audio_reactivity
+
+        bass = 0.0
+        if hasattr(self.platform, 'bass'):
+            bass = self.platform.bass * 15 * self.shader_style.audio_reactivity
         if 'u_bass' in self.prog:
             self.prog['u_bass'].value = float(bass)
 
-        # 4. Map the audio analysis metadata
         if hasattr(self.platform, 'audioanalysis'):
             for m in ANALYSIS_METADATA:
                 key = f"u_{m}"
                 if key in self.prog:
                     value = self.platform.audioanalysis.get(m, 0.0)
-                    # Handle boolean 'beat' uniform which expects an int/bool
                     if isinstance(value, bool):
                         self.prog[key].value = int(value)
                     else:
@@ -48,7 +63,7 @@ class ShaderFrame(GLSLFrame):
             self.prog['u_progress'].value = float(self.platform.elapsedpc)
 
         if 'u_colour' in self.prog:
-            rgb_colour = self.colours.get_rgb_normalised(self.colour)
+            rgb_colour = self.colours.get_rgb_normalised(self.shader_style.colour)
             self.prog['u_colour'].value = rgb_colour
 
 

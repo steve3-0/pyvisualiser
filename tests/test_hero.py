@@ -14,6 +14,7 @@ from pyvisualiser.visualisers.metadata import *
 from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.visualisers.glvisualisers import *
 from pyvisualiser.visualisers.oscillogramme import *
+from pyvisualiser.core.base_defs import *
 
 from pyvisualiser.styles.presets import *
 from pyvisualiser.styles.styles  import *
@@ -38,9 +39,8 @@ class VolumeSource(Frame):
         Frame.__init__(self, platform, **kwargs)
         rows = RowFramer(self, row_ratios=(1,1,1), padding=10, padpc=0.05, align=('right','bottom'), scalers=(0.1,1.0))
         rows += CircularProgress(rows, colour='mid')
-        rows += MetaData(rows, metadata_type='source', colour='mid')
-        rows += MetaData(rows, metadata_type='volume', colour='foreground')
-
+        rows += MetaData(rows, key=MetadataKey.SOURCE, colour='mid')
+        rows += MetaData(rows, key=MetadataKey.VOLUME, colour='foreground')
 
 class H1(Frame):   # comprises volume on the left, spectrum on the right
     @property
@@ -52,13 +52,13 @@ class H1(Frame):   # comprises volume on the left, spectrum on the right
     def __init__(self, platform):
 
 
-        edge = EdgeLightStyle(enabled=True, intensity=0.7, width=0.2, softness=1.2,audio_reactivity=0.0)
+        EDGE = EdgeLightStyle(enabled=True, intensity=0.9, width=0.2, softness=1.2,audio_reactivity=0.0)
         BACKGROUND    = BackgroundStyle(colour='background', ambient_glow=None, \
-                                        texture_path='particles.jpg', texture_opacity=0.6, \
-                                        reactive_glow=None, starfield=False, edge_light=Edge   )
+                                        texture_path='particles.jpg', texture_opacity=0.4, \
+                                        reactive_glow=None, starfield=False, edge_light=EDGE   )
         
 
-        Frame.__init__(self, platform, background=BACKGROUND, theme= 'ocean', padding=0, outline=None)
+        Frame.__init__(self, platform, config=FrameConfig(background=BACKGROUND, theme= 'hifi', padding=0, outline=None))
 
 
         NEEDLE    = VUNeedleStyle( colour='foreground', width=2, length=0.8, radius_pc=1.0, 
@@ -106,33 +106,40 @@ class H1(Frame):   # comprises volume on the left, spectrum on the right
         METERPAD  = 0
         METAPAD = 0
 
+        # 3 Columns
         cols = ColFramer(self, col_ratios=(1,2,1),padpc=0.1)
 
-        row_l     = RowFramer(cols, row_ratios=(2,1),padpc=0.15)
-        row_l    += VUMeter(row_l, 'left', square=False, style=meter, background=VUBackground, outline=SimpleOutline,padding=METERPAD)
+        # Col 1
+        row_l     = RowFramer(cols, row_ratios=(2,1), padpc=0.15)
+        row_l    += VUMeter(row_l, 'left',  visuals=meter, 
+                            config=FrameConfig(square=False,background=VUBackground, outline=SimpleOutline,padding=METERPAD))
 
-        source    = RowFramer(row_l, row_ratios=(2,1,1),padding=METAPAD)
-        source    += MetaData(source, metadata_type='source', colour='light')
-        source    += MetaData(source, metadata_type='format', colour='light')
-        source    += MetaData(source, metadata_type='sample_rate', colour='light')
- 
-        centre    = RowFramer(cols, row_ratios=(3,1,0.4),outline=None,padding=0,padpc=0.1)
+        source    = RowFramer(row_l, row_ratios=(2,1,1)) #, config=self.config.change(padding=METAPAD))
 
-        stereo    = ColFramer(centre, col_ratios=(1,1),outline=SimpleOutline,padding=1,padpc=0.0)
-        stereo    += SpectrumFrame(centre, 'left', spectrum_style=SPECTRUM_STYLE_FLIP) 
-        stereo    += SpectrumFrame(centre, 'right', spectrum_style=SPECTRUM_STYLE) 
+        source    += MetaData(source, key=MetadataKey.SOURCE, visuals=TextStyle(colour='light'))
+        source    += MetaData(source, key=MetadataKey.FORMAT, visuals=TextStyle(colour='light'))
+        source    += MetaData(source, key=MetadataKey.SAMPLE_RATE, visuals=TextStyle(colour='light'))
+
+        # Col 2
+        centre    = RowFramer(cols, row_ratios=(3,1,0.4),padpc=0.15)
+
+        stereo    = ColFramer(centre, col_ratios=(1,1),config=FrameConfig(outline=SimpleOutline,padding=10),padpc=0.0)
+        stereo    += SpectrumFrame(centre, 'left', visuals=SPECTRUM_STYLE_FLIP) 
+        stereo    += SpectrumFrame(centre, 'right', visuals=SPECTRUM_STYLE) 
   
         # centre   += SpectrumFrame(centre, 'mono', spectrum_style=SPECTRUM_STYLE, background=SPECTRUM_BACKGROUND, outline=SimpleOutline,padding=1) 
         # centre += SpectrumStereoFrame(centre)
 
-        metadata  = RowFramer(centre,padpc=0.0,padding=10, outline=SimpleOutline, background=BackgroundStyle(colour_opacity=0.2, reactive_glow=ReactiveGlowStyle(colour='mid')))
-        metadata  += MetaData(metadata, metadata_type='track',justify=('left'), colour='foreground')
-        metadata  += MetaData(metadata, metadata_type='artist',justify=('left'), colour='light')
+        metadata  = RowFramer(centre,padpc=0.0,config=FrameConfig(padding=10, outline=SimpleOutline, background=BackgroundStyle(colour_opacity=0.2, reactive_glow=ReactiveGlowStyle(colour='mid'))))
+        metadata  += MetaData(metadata, key=MetadataKey.TRACK,visuals=TextStyle(justify=('left'), colour='foreground'))
+        metadata  += MetaData(metadata, key=MetadataKey.ARTIST,visuals=TextStyle(justify=('left'), colour='light'))
         centre    += PlayProgressFrame(centre)
 
+        # Col 3
         rows_r   = RowFramer(cols, row_ratios=(2,1),padpc=0.15)
-        rows_r   += VUMeter(rows_r,'right', square=False, style=meter, background=VUBackground, outline=SimpleOutline,padding=METERPAD)
-        rows_r   += MetaData(rows_r, metadata_type='volume', colour='foreground',padding=METAPAD)
+        rows_r   += VUMeter(rows_r,'right', visuals=meter, 
+                            config=FrameConfig(square=False, background=VUBackground, outline=SimpleOutline,padding=METERPAD))
+        rows_r   += MetaData(rows_r, key=MetadataKey.VOLUME, visuals=TextStyle(colour='foreground'),config=FrameConfig(padding=METAPAD))
 
 
 class H2(Frame):   # comprises volume on the left, spectrum on the right
@@ -149,7 +156,7 @@ class H2(Frame):   # comprises volume on the left, spectrum on the right
         SpectrumBackground    = BackgroundStyle(colour='background', ambient_glow=SpectrumGlow, edge_light=Edge,\
                                                 texture_path='particles.jpg', texture_opacity=0.6 )
         SimpleOutline         = OutlineStyle(colour='mid', width=1, radius=10, opacity=1.0, glow_intensity=0.0, softness=0.0)
-        Frame.__init__(self, platform, theme= 'hifi', background=SpectrumBackground)
+        Frame.__init__(self, platform, config=FrameConfig(theme= 'hifi', background=SpectrumBackground))
 
         cols              = ColFramer(self,col_ratios=(1,2), padding=10, padpc=0.00)
 
@@ -158,8 +165,8 @@ class H2(Frame):   # comprises volume on the left, spectrum on the right
         centre           = RowFramer(cols, row_ratios=(1.5,3,1), padding=0, padpc=0.0)
 
         metadata         = RowFramer(centre,padpc=0.0)
-        metadata        += MetaData(metadata, metadata_type='track',justify=('left'), colour='foreground')
-        metadata        += MetaData(metadata, metadata_type='artist',justify=('left'), colour='light')
+        metadata        += MetaData(metadata, key=MetadataKey.TRACK,visuals=TextStyle(justify=('left'), colour='foreground'))
+        metadata        += MetaData(metadata, key=MetadataKey.ARTIST,visuals=TextStyle(justify=('left'), colour='light'))
 
         reflection_style = ReflectionStyle(size=0.5, opacity=0.05)
         effects_style    = BarEffects(reflection=reflection_style, threshold=0.6, scale=2.0, alpha=200, blur=1.5)
@@ -182,7 +189,7 @@ class H3(Frame):   # comprises volume on the left, spectrum on the right
     def type(self): return 'Test'
 
     def __init__(self, platform):
-        Frame.__init__(self, platform, theme= 'hifi', padding=0, background=ScreenBackground)
+        Frame.__init__(self, platform, config=FrameConfig(theme= 'hifi', padding=0, background=ScreenBackground))
 
         colframe = ColFramer(self, padpc=0.0, col_ratios=(2,8,0.8), padding=10,background=None)
 
@@ -205,16 +212,18 @@ class H4(Frame):   # comprises volume on the left, spectrum on the right
     def type(self): return 'Test'
 
     def __init__(self, platform):
-        Frame.__init__(self, platform, theme= 'hifi', padding=0, background=ScreenBackground)
+        Frame.__init__(self, platform, config=FrameConfig(theme= 'hifi', padding=0, background=ScreenBackground))
 
         colframe    = ColFramer(self, padpc=0.0, col_ratios=(3,4,0.8), padding=10,background=None)
 
         image = RowFramer(colframe, row_ratios=(4,1),outline=ArtOutline)
-        image += MetaImages(image, padding=10, art_type='artist', background=BackgroundStyle(colour='background', colour_opacity=1.0),  reflection=True)  
-        image += MetaData(image, metadata_type='artist', colour='mid',justify=('centre'))
+        image += MetaImages(image,  key=MetadataKey.ARTIST, 
+                            config=FrameConfig(background=BackgroundStyle(colour='background', colour_opacity=1.0)),  
+                            visuals= ImageStyle(reflection=True)  )
+        image += MetaData(image, key=MetadataKey.ARTIST, colour='mid',justify=('centre'))
 
         metadata_col  = RowFramer(colframe, row_ratios=(1,3,3), padding=0,padpc=0.0)
-        metadata_col += MetaData(metadata_col, metadata_type='track', colour='foreground')
+        metadata_col += MetaData(metadata_col, key=MetadataKey.TRACK, colour='foreground')
         metadata_col += OscilogrammeBar(metadata_col, 'left', oscillograme=OscillogrammeStyle(barsize_pc=0.5, barw_min=2), bar_style=BarStyle(led_gap=0))
         metadata_col += OscilogrammeBar(metadata_col, 'right', oscillograme=OscillogrammeStyle(barsize_pc=0.5, barw_min=2), bar_style=BarStyle(led_gap=0,flip=True))
 
@@ -229,7 +238,7 @@ class H5(Frame):   # comprises volume on the left, spectrum on the right
     def type(self): return 'Test'
 
     def __init__(self, platform):
-        Frame.__init__(self, platform, background=ScreenBackground, theme= 'hifi', padding=0)
+        Frame.__init__(self, platform, config=FrameConfig(background=ScreenBackground, theme= 'hifi', padding=0))
 
         TICK_W    = 3
         TICK_PC   = 0.1
@@ -270,8 +279,8 @@ class H5(Frame):   # comprises volume on the left, spectrum on the right
         cols += VUMeter(cols, 'right', style=style, background=vubackground, outline=vuoutline)
 
         metadata  = RowFramer(rows,padpc=0.05,outline=None)
-        metadata  += MetaData(metadata, metadata_type='track',justify=('centre'), colour='foreground')
-        metadata  += MetaData(metadata, metadata_type='artist',justify=('centre'), colour='light')
+        metadata  += MetaData(metadata, key=MetadataKey.TRACK,justify=('centre'), colour='foreground')
+        metadata  += MetaData(metadata, key=MetadataKey.ARTIST,justify=('centre'), colour='light')
 
         cols_all += Frame(cols_all)  
         self += VolumeSource(self)
@@ -279,7 +288,7 @@ class H5(Frame):   # comprises volume on the left, spectrum on the right
 class H6(Frame):
 
     def __init__(self, parent):
-        Frame.__init__(self, parent, theme='hifi', background=ScreenBackground)
+        Frame.__init__(self, parent, config=FrameConfig(theme='hifi', background=ScreenBackground))
 
         cols  = ColFramer(self, col_ratios=(4,7,1), padding=10, padpc=0.0)
 
@@ -320,8 +329,8 @@ class H7(Frame):
         centre            = RowFramer(cols, row_ratios=(1.5,3,1), padding=0, padpc=0.0)
 
         metadata         = RowFramer(centre,padpc=0.0)
-        metadata        += MetaData(metadata, metadata_type='track',justify=('left'), colour='foreground')
-        metadata        += MetaData(metadata, metadata_type='artist',justify=('left'), colour='light')
+        metadata        += MetaData(metadata, key=MetadataKey.TRACK,justify=('left'), colour='foreground')
+        metadata        += MetaData(metadata, key=MetadataKey.ARTIST,justify=('left'), colour='light')
 
         reflection_style = ReflectionStyle(size=0.5, opacity=0.05)
         effects_style    = BarEffects(reflection=reflection_style, threshold=0.6, scale=2.0, alpha=200, blur=1.5)
@@ -340,7 +349,7 @@ class H7(Frame):
 class H8(Frame):
 
     def __init__(self, parent):
-        Frame.__init__(self, parent, theme='hifi', background=ScreenBackground)
+        Frame.__init__(self, parent, config=FrameConfig(theme='hifi', background=ScreenBackground))
 
         basepanel   = BackgroundStyle(colour='background', colour_opacity=0.2, ambient_glow=None, texture_opacity=0.0, texture_path='particles.jpg')
         baseoutline = OutlineStyle(colour='mid', width=0, radius=10, opacity=1.0, glow_intensity=0.2, softness=0.7)
@@ -368,7 +377,7 @@ class H8(Frame):
         spectrum    += SpectrumFrame(spectrum, channel='right', spectrum_style=spectrum_style_right)
         
         col2    += Frame(col2) 
-        col2    += MetaData(col2, metadata_type='track',justify=('centre'), colour='foreground',background=basepanel, outline=baseoutline)
+        col2    += MetaData(col2, key=MetadataKey.TRACK,justify=('centre'), colour='foreground',background=basepanel, outline=baseoutline)
 
         cols += Frame(cols) 
         self += VolumeSource(self)
@@ -379,13 +388,13 @@ class H9(Frame):
     def __init__(self, parent):
 
         background=BackgroundStyle(colour='background', shader='balatro',edge_light=Edge)
-        Frame.__init__(self, parent, theme='hifi', background=ScreenBackground)
+        Frame.__init__(self, parent, config=FrameConfig(theme='hifi', background=ScreenBackground))
 
         cols  = ColFramer(self, col_ratios=(4,7,1), padding=10, padpc=0.0)
 
         metadata   = RowFramer(cols,row_ratios=(4,2,7),padpc=0.0)
-        metadata  += MetaData(metadata, metadata_type='track',justify=('left'), colour='foreground')
-        metadata  += MetaData(metadata, metadata_type='artist',justify=('left'), colour='light')
+        metadata  += MetaData(metadata, key=MetadataKey.TRACK,justify=('left'), colour='foreground')
+        metadata  += MetaData(metadata, key=MetadataKey.ARTIST,justify=('left'), colour='light')
         metadata  += Frame(metadata) 
 
         cols += ShaderFrame(cols, shader='pinkball', colour='light')

@@ -30,6 +30,8 @@ from pyvisualiser.core.framecore import Frame, ColFramer, RowFramer
 from pyvisualiser.styles.presets import *
 from pyvisualiser.styles.styles  import *
 
+from test_spectrum import *
+
 """
 Screen classes - these are top level frames comprising frames of frames at full display size
 """

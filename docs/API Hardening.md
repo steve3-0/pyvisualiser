@@ -371,9 +371,10 @@ Component(
     parent,                               # 1. Structural Container
     [domain_binding],                     # 2. Primary Data Binding (Channel, MetadataKey, or Shader Name)
     config: Optional[FrameConfig] = None, # 3. Spatial & Container Envelope (Scalers, Align, Bounds, Theme, Outline)
-    visuals: Optional[VisualsDataclass]   # 4. Component Aesthetics (SDF shapes, colors, ticks, textures)
+    visuals: Optional[VisualsDataclass]   # 4. Component Aesthetics (SDF shapes, colors, ticks, textures)     
+                                          # 6. [secondary_visuals]                Nested Sub-elements (e.g. BarStyle inside a Progress Bar)
     [ballistics: Optional[Ballistics]],   # 5. Motion Dynamics (Decay, smoothing, inertia, peak hold)
-    [secondary_visuals]                   # 6. Nested Sub-elements (e.g. BarStyle inside a Progress Bar)
+
 )
 ```
 

@@ -22,12 +22,14 @@ from pyvisualiser.visualisers.metadata import *
 from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.visualisers.oscillogramme import *
 
+
+from test_hero import *
+from test_vua import *
+from test_spectrum import *
+
+
 from screens import *
 from screens2 import *
-from screens3 import *
-from VUscreens import *
-# from tests.vis import MANY_SCREENS
-# from tests.vis import MANY_SCREENS
 from testscreens import *
 from test_api_coverage import *
 from test_advanced_visuals import *
@@ -46,7 +48,7 @@ ALLSCREENS = ( MinSpectrumArt, TrackScreen, TrackSpectrumScreen, TrackSpectrumSc
 ART_SCREENS= (ArtistScreen, ImageTestScreen, ReflectionTestScreen)
 
 SPECTRUM_TEST_SCREENS= (TestSpectrumScreen, StereoSpectrumLRScreen, FullSpectrumOffsetScreen, StereoSpectrumScreen, StereoSpectrumSplitScreen, \
-                        MonoSpectrumScreen, MonoSpectrumLEDScreen, MixedLEDScreen, SpectrumStereoSplitFrame)
+                        MonoSpectrumScreen, MonoSpectrumLEDScreen, SpectrumStereoSplitFrame)
 
 VU_TEST_SCREENS= (TrackVUMeterScreen2, VUImageScreen, VUScreen, VUVScreen, TestVUImageScreen1, TestVUImageScreen2, \
                   TestVUMetersScreen, TestVisualiserScreen, TestSpectrumScreen, TestVUScreen)
@@ -54,13 +56,14 @@ VU_BAR_TEST_SCREENS = (VUScreen, VUVScreen, TestVUScreen, IntensityTestScreen)
 GEO_TEST_SCREENS= (ColAlignedScreen, RowAlignedScreen, \
                    F1, F2,  F3, F4, F5, F6, F7, F8 )
 
-VU_METER_SCREENS = (VUTestScreen1,  VUTestScreen2,VUImageScreen, VUVintageScreen, VUModernScreen, VUTungstenScreen, VUNeedleStylesScreen,VUNeedleEffectsScreen, TestVUMetersScreen, TestVUImageScreen1, TestVUImageScreen2)
+VU_METER_SCREENS = (VUTestScreen1,  VUTestScreen2,VUImageScreen, VUVintageScreen, VUModernScreen, VUTungstenScreen, 
+                    VUNeedleStylesScreen,VUNeedleEffectsScreen, TestVUMetersScreen, TestVUImageScreen1, TestVUImageScreen2)
 
 TEST_SCREENS = (AmbientGlowTunerScreen, AdvancedVisualsScreen, APICoverageScreen, BarParametersTestScreen, VUVScreen, IntensityTestScreen, OutlineGlowTestScreen )
 
 MAIN_SCREENS= (TrackScreen, TrackVisScreen, TrackVisScreen2, TrackVisScreen3, TrackSpectrumScreen, \
                TrackSpectrumScreen2, MetaArtFrame, TrackSpectrumScreen3, TrackSpectrumScreen4,\
-               TrackVUMeterScreen, TrackVUMeterScreen2, TrackOscScreen,\
+               TrackVUMeterScreen, TrackVUMeterScreen2, TrackOscScreen, MixedLEDScreen
                )  
 
 FULL_SCREENS = (Screen1, Screen2, Screen3, Screen4, Screen5, Screen6, Screen7)
@@ -85,7 +88,7 @@ TEST_SCREENS2 = (BackgroundEffectsScreen0, BackgroundEffectsScreen1, BackgroundE
                  AudioTestScreen, BarEffectsTestScreen, LEDtestScreen, GlowTestScreen)
 
 HERO_SCREENS  = (H1,H2,H3,H4,H5,H6,H7,H8,H9)
-QUICK = (MonoSpectrumScreen,)
+QUICK = (VUScreen,)
 
 ALLSCREENS = []
 # Dictionary mapping argument names to their respective screen tuples and descriptions
