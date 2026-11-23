@@ -22,6 +22,7 @@ from pyvisualiser.styles.styles import (
     TextStyle,
     BarStyle,
     BarEffects,
+    ShadowStyle,
     VUBarStyle,
 )
 from pyvisualiser.visualisers.vumeters import VU2chFrame, VU2chHorzFrame
@@ -243,3 +244,51 @@ class BackgroundEffectsScreen0(Frame):
         s2 = BackgroundStyle(colour='background', cloud=cloud_style, edge_light=edge)
 
         super().__init__(platform, config=FrameConfig(theme='hifi', background=s2))
+
+
+class ShadowTestScreen(Frame):
+
+    @property
+    def title(self):
+        return 'Drop Shadow Test'
+
+    @property
+    def type(self):
+        return 'Test'
+
+    def __init__(self, platform):
+        Frame.__init__(self, platform, config=FrameConfig(background=BackgroundStyle(texture_path='particles.jpg', texture_opacity=0.2)))
+        cols = self.add_cols(ratios=(1, 1, 1), padpc=0.2, config=FrameConfig(padding=40))
+
+        # 1. Hard Offset Drop Shadow
+        s1 = ShadowStyle(colour=(0, 0, 0), opacity=1.0, offset=(15, 15), softness=0.0)
+        out1 = OutlineStyle(colour='foreground', width=2, radius=10)
+        bg1 = BackgroundStyle(colour='light', colour_opacity=1.0, shadow=s1)
+        cols += TextFrame(
+            cols,
+            text='Hard Shadow',
+            config=FrameConfig(outline=out1, background=bg1),
+            visuals=TextStyle(colour='dark', justify=('centre', 'middle'))
+        )
+
+        # 2. Soft Offset Drop Shadow
+        s2 = ShadowStyle(colour=(0, 0, 0), opacity=0.8, offset=(20, 20), softness=0.8)
+        out2 = OutlineStyle(colour='foreground', width=2, radius=20)
+        bg2 = BackgroundStyle(colour='mid', colour_opacity=1.0, shadow=s2)
+        cols += TextFrame(
+            cols,
+            text='Soft Shadow',
+            config=FrameConfig(outline=out2, background=bg2),
+            visuals=TextStyle(colour='foreground', justify=('centre', 'middle'))
+        )
+
+        # 3. Centered Red Glow (Offset 0, 0)
+        s3 = ShadowStyle(colour=(255, 50, 50), opacity=1.0, offset=(0, 0), softness=0.9)
+        out3 = OutlineStyle(colour='foreground', width=2, radius=30)
+        bg3 = BackgroundStyle(colour='dark', colour_opacity=1.0, shadow=s3)
+        cols += TextFrame(
+            cols,
+            text='Red Glow',
+            config=FrameConfig(outline=out3, background=bg3),
+            visuals=TextStyle(colour='light', justify=('centre', 'middle'))
+        )

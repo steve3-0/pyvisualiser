@@ -132,15 +132,12 @@ class Oscilogramme(Frame):
         self.channel = Channel.from_str(str(channel))
         self.oscillograme = visuals if visuals is not None else OscillogrammeStyle()
 
-        resolved_config = config if config is not None else FrameConfig(
-            align=('left', 'bottom')
-        )
-        super().__init__(parent, config=resolved_config)
+        super().__init__(parent, config=config)
         self.configure()
 
     def configure(self):
         self.lines = Line(self, circle=False, amp_scale=0.6)
-        self.resolution = 256
+        self.resolution = 1024
 
     def update_screen(self, audio=None, media=None):
         reduceby = max(1, self.platform.framesize // self.resolution)
@@ -193,7 +190,7 @@ class SamplesFrame(Frame):
             self,
             channel=Channel.LEFT,
             config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'top')),
-            visuals=self.oscillograme_r
+            visuals=self.oscillograme_l
 
         )
         self += OscilogrammeBar(

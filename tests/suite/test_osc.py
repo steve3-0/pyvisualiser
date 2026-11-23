@@ -23,9 +23,10 @@ class TestOscBarScreen(Frame):
     def __init__(self, platform):
         back = BackgroundStyle(colour='dark')
         Frame.__init__(self, platform, config=FrameConfig(background=back))
-        self += OscilogrammeBar(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('right', 'top')))
+        self += OscilogrammeBar(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('right', 'top')),
+                                visuals=OscillogrammeStyle(barsize_pc=4,bar_style=BarStyle(flip=False, led_gap=0)))
         self += OscilogrammeBar(self, 'right', config=FrameConfig(scalers=(1.0, 0.5), align=('right', 'bottom')), 
-                                visuals=OscillogrammeStyle(bar_style=BarStyle(flip=True)))
+                                visuals=OscillogrammeStyle(barsize_pc=4,bar_style=BarStyle(flip=True, led_gap=0)))
 
 class TestOscScreen(Frame):
 
@@ -40,9 +41,10 @@ class TestOscScreen(Frame):
     def __init__(self, platform):
         back = BackgroundStyle(colour='background')
         Frame.__init__(self, platform, config=FrameConfig(background=back))
-        self += Oscilogramme(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('right', 'top')))
+        self += Oscilogramme(self, 'left', config=FrameConfig(scalers=(1.0, 0.5), align=('right', 'top')),
+                             visuals=OscillogrammeStyle(barsize_pc=4,bar_style=BarStyle(flip=False, led_gap=0)))
         self += Oscilogramme(self, 'right', config=FrameConfig(scalers=(1.0, 0.5), align=('right', 'bottom')), 
-                                                               visuals=OscillogrammeStyle(bar_style=BarStyle(flip=True)))
+                            visuals=OscillogrammeStyle(barsize_pc=4,bar_style=BarStyle(flip=True, led_gap=0)))
 
 
 class TrackVisScreen3(Frame):

@@ -109,8 +109,8 @@ from suite.test_art import (
 from suite.test_meta import (
     ArtistMetaDataFrame,
     MetaMiniSpectrumFrame,
-    ShadowTestScreen,
     ProgressScreen,
+    CircProgressScreen
 )
 from suite.test_back import (
     F9,
@@ -118,6 +118,8 @@ from suite.test_back import (
     BackgroundEffectsScreen0,
     BackgroundEffectsScreen1,
     BackgroundEffectsScreen2,
+    ShadowTestScreen,
+
 )
 from suite.test_geo import (
     MixedLEDScreen,
@@ -211,7 +213,7 @@ SPECTRUM_TEST_SCREENS = (
     Spectrum2chFrame,
 )
 
-OSC_SCREENS = (TestOscScreen, TestOscBarScreen, TrackVisScreen3)
+OSC_SCREENS = (TestOscScreen, TestOscBarScreen, TrackVisScreen3, TrackOscScreen)
 
 ART_SCREENS = (
     ImageTestScreen,
@@ -223,8 +225,8 @@ ART_SCREENS = (
 META_TEST_SCREENS = (
     ArtistMetaDataFrame,
     MetaMiniSpectrumFrame,
-    ShadowTestScreen,
     ProgressScreen,
+    CircProgressScreen
 )
 
 GEO_TEST_SCREENS = (
@@ -241,6 +243,8 @@ BACKGROUND_SCREENS = (
     BackgroundEffectsScreen2,
     BloomImageTestScreen,
     F9,
+    ShadowTestScreen,
+
 )
 
 SHADER_SCREENS = (
