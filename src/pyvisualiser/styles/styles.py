@@ -9,6 +9,7 @@ Collating all the classes that hold the styles of how visualisers work enables:
 
 from dataclasses import dataclass, field
 from typing import Optional, Union, Tuple, Dict, Any
+from pyvisualiser.styles.ballistics import FFTBallistics, MeterBallistics
 
 
 @dataclass(frozen=True)
@@ -67,13 +68,20 @@ class EdgeLightStyle:
     softness: float = 2.0
     audio_reactivity: float = 0.2
 
-
+@dataclass(frozen=True)
+class ShadowStyle:
+    """Offset drop shadow for cards and frames."""
+    colour: Union[Tuple[int, int, int], str] = (0, 0, 0)
+    opacity: int = 255
+    offset: Tuple[int, int] = (10, 10)
+    softness: float = 0.5
+    
 @dataclass(frozen=True)
 class BackgroundStyle:
     colour: str = 'background'
     colour_opacity: float = 1.0
     texture_path: Optional[str] = None
-    texture_opacity: float = 0.5
+    texture_opacity: float = 0.5 #max 1.0
     vignette: Union[VignetteStyle, bool] = False
     noise: Union[NoiseStyle, bool] = False
     ambient_glow: Union[AmbientGlowStyle, bool] = False
@@ -83,7 +91,7 @@ class BackgroundStyle:
     cloud: Union[CloudStyle, bool] = False
     edge_light: Union[EdgeLightStyle, bool] = False
     shader: Union[str, bool] = False
-
+    shadow: Optional[ShadowStyle] = None
 
 @dataclass(frozen=True)
 class ReflectionStyle:
@@ -127,6 +135,8 @@ class ShaderStyle:
     extra_uniforms: Dict[str, Any] = field(default_factory=dict)
 
 
+
+
 @dataclass(frozen=True)
 class BarEffects:
     threshold: float = 0.85
@@ -146,7 +156,6 @@ class BarEffects:
 
 @dataclass(frozen=True)
 class BarStyle:
-    barsize_pc: float = 0.7
     led_h: int = 10
     led_gap: int = 4
     peak_h: int = 1
@@ -174,14 +183,14 @@ class SpectrumStyle:
     barsize_pc: float = 0.5
     barw_min: int = 2
     barw_max: int = 50
-    decay: float = 0.4
     flip: bool = False
     bar_style: BarStyle = field(default_factory=BarStyle)
-
+    ballistics: FFTBallistics = field(default_factory=FFTBallistics)
 
 @dataclass(frozen=True)
-class ProgressStyle:
-    bar_style: BarStyle = field(default_factory=lambda: BarStyle(barsize_pc=0.5, led_gap=0))
+class PlayProgressStyle:
+    barsize_pc: float = 0.5
+    bar_style: BarStyle = field(default_factory=lambda: BarStyle(led_gap=0))
     text_style: TextStyle = field(default_factory=TextStyle)
 
 
@@ -242,11 +251,7 @@ class VUMeterScale:
     scale_radius: float = SCALESLEN
     font_height: float = FONTH
 
-
-DECAY = 0.3
-SMOOTH = 15
 PI = 3.14152
-
 
 @dataclass(frozen=True)
 class VUMeterStyle:
@@ -260,10 +265,20 @@ class VUMeterStyle:
     texture_path: Optional[str] = None
     texture_opacity: float = 1.0
     show_peak: bool = False
-    decay: float = DECAY
-    smooth: int = SMOOTH
+    decay: float = 0.1
+    smooth: int = 15
+    ballistics: MeterBallistics = field(default_factory=MeterBallistics)
 
 
+""" Digital Bar VU Meter"""
+@dataclass(frozen=True)
+class VUBarStyle:
+    barsize_pc: float = 0.5
+    bar_style: BarStyle = field(default_factory=BarStyle)
+    ballistics: MeterBallistics = field(default_factory=MeterBallistics)
+
+
+"""Oscillogramme and sample based frames"""
 @dataclass(frozen=True)
 class OscillogrammeStyle:
     delay: float = 0.5

@@ -12,7 +12,10 @@ from pyvisualiser.styles.styles  import *
 from pyvisualiser.core.framecore  import Frame, RowFramer, ColFramer
 from pyvisualiser.visualisers.metadata import CircularProgress, MetaDataFrame, PlayProgressFrame, TextFrame, MetaImages, MetaData
 from pyvisualiser.visualisers.spectrum import *
+from pyvisualiser.core.frame_config import *
 
+
+""" NOT IMPLEMENTED"""
 class GLmeshScreen(Frame):
     @property
     def title(self): return 'GLSL Shader Test - Kaleidoscope & SpectrumMesh'
@@ -22,7 +25,7 @@ class GLmeshScreen(Frame):
 
     def __init__(self, platform):
         # Use the new 'meter2' theme which has the cream background
-        super().__init__(platform, theme='hifi', padding=0)
+        super().__init__(platform, config=FrameConfig(theme='hifi', padding=0))
 
         
         # Add SpectrumMesh on the right
@@ -57,7 +60,7 @@ class GLTestScreen1(Frame):
 
     def __init__(self, platform):
         # Use the new 'meter2' theme which has the cream background
-        super().__init__(platform, theme='hifi', padding=0)    
+        super().__init__(platform, config=FrameConfig(theme='hifi', padding=0)    )
 
         col = ColFramer(self)
         for shader in SHADERS1:
@@ -73,7 +76,7 @@ class GLTestScreen2(Frame):
 
     def __init__(self, platform):
         # Use the new 'meter2' theme which has the cream background
-        super().__init__(platform, theme='hifi', padding=0)
+        super().__init__(platform, config=FrameConfig(theme='hifi', padding=0))
 
         col = ColFramer(self)
         for shader in SHADERS2:
@@ -92,7 +95,7 @@ class GLTestScreen3(Frame):
 
     def __init__(self, platform):
         # Use the new 'meter2' theme which has the cream background
-        super().__init__(platform, theme='hifi', padding=0)
+        super().__init__(platform, config=FrameConfig(theme='hifi', padding=0))
 
         col = ColFramer(self)
         for shader in SHADERS3:
@@ -111,5 +114,5 @@ class GLTestScreen4(Frame):
 
     def __init__(self, platform):
         # Use the new 'meter2' theme which has the cream background
-        super().__init__(platform, theme='hifi', padding=0)
+        super().__init__(platform, config=FrameConfig( theme='hifi', padding=0))
 

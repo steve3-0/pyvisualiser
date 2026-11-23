@@ -12,7 +12,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class MeterBallistics:
     """Motion dynamics and temporal filtering for analogue & digital VU meters."""
-    decay_rate: float = 0.30          # Fractional decay per frame (0.01 to 0.99)
+    decay_rate: float = 0.150         # Fractional decay per frame (0.01 to 0.99) - useful below 0.2
     peak_decay_rate: float = 0.005    # Fall-off rate for floating peak markers
     smoothing_samples: int = 10       # Moving average window size for needle inertia
     peak_hold_frames: int = 30        # Frames to freeze peak before initiating decay
@@ -28,8 +28,8 @@ class MeterBallistics:
 @dataclass(frozen=True)
 class FFTBallistics:
     """Motion dynamics and temporal filtering for spectrum analysers."""
-    attack_rate: float = 0.90         # Rising responsiveness factor (0.0 to 1.0)
-    decay_rate: float = 0.08          # Falling decay rate per frame
+    attack_rate: float = 0.95         # Rising responsiveness factor (0.0 to 1.0)
+    decay_rate: float = 0.07          # Falling decay rate per frame
     peak_decay_rate: float = 0.02     # Floating peak marker decay rate
     smoothing_factor: float = 0.50    # Temporal blending between consecutive FFT frames
 

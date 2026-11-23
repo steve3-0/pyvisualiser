@@ -38,7 +38,6 @@ class Spectrum:
         barw_min=1,
         barw_max=20,
         bandwidth=None,
-        decay=0.4,
         ballistics: Optional[FFTBallistics] = None,
         platform=None
     ):
@@ -52,7 +51,7 @@ class Spectrum:
         if ballistics is not None:
             self.ballistics = ballistics
         else:
-            self.ballistics = FFTBallistics(decay_rate=decay)
+            self.ballistics = FFTBallistics()
 
         # 2. Calculate how many bars can be drawn in the width available
         barw = self.barw_min
@@ -147,11 +146,10 @@ class SpectrumFrame(Frame, Spectrum):
         parent,
         channel: Channel | str = Channel.MONO,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[SpectrumStyle] = None,
-        ballistics: Optional[FFTBallistics] = None
+        visuals: Optional[SpectrumStyle] = None
     ):
         self.channel = Channel.from_str(str(channel))
-        self.ballistics = ballistics
+
         self.spectrum_style = visuals if visuals is not None else SpectrumStyle()
         self.bar_style = self.spectrum_style.bar_style
 
@@ -165,11 +163,10 @@ class SpectrumFrame(Frame, Spectrum):
         Spectrum.__init__(
             self,
             spectrum_w,
-            barsize_pc=self.bar_style.barsize_pc,
+            barsize_pc=self.spectrum_style.barsize_pc,
             barw_min=self.spectrum_style.barw_min,
             barw_max=self.spectrum_style.barw_max,
-            decay=self.spectrum_style.decay,
-            ballistics=self.ballistics,
+            ballistics=self.spectrum_style.ballistics,
             platform=self.platform
         )
         self.bar = Bar(self, box_size=(self.width, spectrum_h), bar_style=self.bar_style)
@@ -226,7 +223,6 @@ class Diamondiser(Frame, Spectrum):
             self.w,
             barsize_pc=self.spectrum_style.barsize_pc,
             bandwidth=8000,
-            decay=self.spectrum_style.decay,
             ballistics=self.ballistics,
             platform=self.platform
         )
@@ -266,12 +262,12 @@ class Octaviser(Frame, Spectrum):
         parent,
         channel: Channel | str = Channel.MONO,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[SpectrumStyle] = None,
-        ballistics: Optional[FFTBallistics] = None
+        visuals: Optional[SpectrumStyle] = None
     ):
         self.channel = Channel.from_str(str(channel))
-        self.ballistics = ballistics
+        
         self.spectrum_style = visuals if visuals is not None else SpectrumStyle()
+        self.ballistics = self.spectrum_style.ballistics
 
         resolved_config = config if config is not None else FrameConfig(align=('left', 'bottom'))
         super().__init__(parent, config=resolved_config)
@@ -302,13 +298,11 @@ class StereoSpectrumFrame(Frame):
         self,
         parent,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[SpectrumStyle] = None,
-        ballistics: Optional[FFTBallistics] = None
+        visuals: Optional[SpectrumStyle] = None
     ):
         resolved_config = config if config is not None else FrameConfig()
         super().__init__(parent, config=resolved_config)
         self.spectrum_style = visuals if visuals is not None else SpectrumStyle(barw_min=15, barsize_pc=0.5)
-        self.ballistics = ballistics
         self.configure()
 
     def configure(self):
@@ -326,15 +320,13 @@ class StereoSpectrumFrame(Frame):
             self,
             channel=Channel.RIGHT,
             config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'top')),
-            visuals=style_r,
-            ballistics=self.ballistics
+            visuals=style_r
         )
         self += SpectrumFrame(
             self,
             channel=Channel.LEFT,
             config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'bottom')),
-            visuals=style_l,
-            ballistics=self.ballistics
+            visuals=style_l
         )
 
     def update_screen(self, audio=None, media=None):
@@ -354,28 +346,18 @@ class Spectrum2chFrame(Frame):
         self,
         parent,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[SpectrumStyle] = None,
-        ballistics: Optional[FFTBallistics] = None
+        visuals: Optional[SpectrumStyle] = None
     ):
         resolved_config = config if config is not None else FrameConfig()
         super().__init__(parent, config=resolved_config)
         self.spectrum_style = visuals
-        self.ballistics = ballistics
         self.configure()
 
     def configure(self):
         from pyvisualiser.core.framecore import ColFramer
         cols = ColFramer(self, col_ratios=(1, 1), config=FrameConfig(scalers=(0.7, 0.7), padding=10))
-        cols += SpectrumFrame(cols, channel=Channel.LEFT, visuals=self.spectrum_style, ballistics=self.ballistics)
-        cols += SpectrumFrame(cols, channel=Channel.RIGHT, visuals=self.spectrum_style, ballistics=self.ballistics)
+        cols += SpectrumFrame(cols, channel=Channel.LEFT, visuals=self.spectru)
+        cols += SpectrumFrame(cols, channel=Channel.RIGHT, visuals=self.spectrum_style)
 
-    def update_screen(self, audio=None, media=None):
-        self.draw_outline()
-        self.draw_background()
-        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
-        for f in draw_list:
-            f.draw_outline()
-            f.draw_background()
-            f.update_screen(audio=audio, media=media)
-        return True
+
         

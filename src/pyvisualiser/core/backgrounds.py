@@ -20,7 +20,6 @@ from pyvisualiser.styles.styles import *
 
 
 class Background:
-    """Legacy compatibility wrapper directing to modern OpenGL BackgroundBase."""
     def __init__(self, frame, background=None):
         self.frame = frame
         self.background = background
@@ -32,14 +31,14 @@ class Background:
             self.background_base = BackgroundBase(frame, background)
         else:
             # Fallback wrapper for string colors or legacy dicts
+            print("WARNING>Background class using legacy API ", type(frame).__name__,type(frame.platform).__name__, background)
             self.background_base = BackgroundBase(frame, BackgroundStyle())
+
+
 
     def draw(self):
         if self.background_base is not None:
             self.background_base.draw()
-
-    def is_per_frame_update(self):
-        return True
 
     def __str__(self):
         return str(self.background)
@@ -512,13 +511,20 @@ vec4 run_pattern(vec2 screenSize, vec2 screen_coords) {{
         self.prog['u_colour'].value = resolver(self.style.colour)
         if 'u_colour_opacity' in self.prog:
             op = float(self.style.colour_opacity) if self.style.colour is not None else 0.0
+            if op > 1.0:
+                op = 1.0
+                print("WARNING> Background.colour_opacity >1.0")
             self.prog['u_colour_opacity'].value = op
 
         # Texture Uniforms
         if self.surface.texture:
             self.surface.texture.use(location=0)
             self.prog['u_texture'].value = 0
-            self.prog['u_texture_opacity'].value = float(self.style.texture_opacity)
+            op=float(self.style.texture_opacity)
+            if op > 1.0:
+                op = 1.0
+                print("WARNING> Background.texture_opacity >1.0")
+            self.prog['u_texture_opacity'].value = op
             self.prog['u_has_texture'].value = True
         else:
             self.context.empty_texture.use(location=0)

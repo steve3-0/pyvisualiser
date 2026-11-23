@@ -170,7 +170,22 @@ class SamplesFrame(Frame):
     ):
         resolved_config = config if config is not None else FrameConfig()
         super().__init__(parent, config=resolved_config)
+
+        import dataclasses
         self.oscillograme = visuals if visuals is not None else OscillogrammeStyle()
+
+        # self.oscillograme_l = dataclasses.replace(self.oscillograme, bar_style=dataclasses.replace(self.oscillograme.bar_style,bar_style=BarStyle(led_gap=0)))
+        # self.oscillograme_r = dataclasses.replace(self.oscillograme, bar_style=dataclasses.replace(self.oscillograme.bar_style,bar_style=BarStyle(led_gap=0, flip=True, colour_mode='horz')))
+
+        self.oscillograme_l = dataclasses.replace(
+            self.oscillograme, 
+            bar_style=dataclasses.replace(self.oscillograme.bar_style, led_gap=0)
+        )
+        
+        self.oscillograme_r = dataclasses.replace(
+            self.oscillograme, 
+            bar_style=dataclasses.replace(self.oscillograme.bar_style, led_gap=0, flip=True, colour_mode='horz')
+        )
         self.configure()
 
     def configure(self):
@@ -178,23 +193,13 @@ class SamplesFrame(Frame):
             self,
             channel=Channel.LEFT,
             config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'top')),
-            visuals=self.oscillograme,
-            bar_visuals=BarStyle(led_gap=0)
+            visuals=self.oscillograme_r
+
         )
         self += OscilogrammeBar(
             self,
             channel=Channel.RIGHT,
             config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'bottom')),
-            visuals=self.oscillograme,
-            bar_visuals=BarStyle(led_gap=0, flip=True, colour_mode='horz')
-        )
+            visuals=self.oscillograme_r,
 
-    def update_screen(self, audio=None, media=None):
-        self.draw_outline()
-        self.draw_background()
-        draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
-        for f in draw_list:
-            f.draw_outline()
-            f.draw_background()
-            f.update_screen(audio=audio, media=media)
-        return True
+        )

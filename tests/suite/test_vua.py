@@ -143,21 +143,21 @@ class VUNeedleStylesScreen(Frame):
         needle1 = VUNeedleStyle(colour='foreground', width=3, length=0.85, radius_pc=1.0, glow_intensity=0.0)
         style1 = VUMeterStyle(needle=needle1)
         c1 = cols.add_rows(ratios=(5, 1))
-        c1 += VUMeter(c1, channel=Channel.MONO, visuals=style1, config=FrameConfig(background='dark', outline=OutlineStyle(colour='mid', width=2)))
+        c1 += VUMeter(c1, channel=Channel.MONO, visuals=style1, config=FrameConfig(background=BackgroundStyle(colour='dark'), outline=OutlineStyle(colour='mid', width=2)))
         c1 += TextFrame(c1, text="Standard Hi-Fi", config=FrameConfig(align=('centre', 'top')))
 
         # 2. Glowing "Laser" Needle
         needle2 = VUNeedleStyle(colour='alert', width=4, length=1.0, radius_pc=0.9, glow_intensity=0.2, glow_colour='alert', tip_glow=True)
         style2 = VUMeterStyle(needle=needle2)
         c2 = cols.add_rows(ratios=(5, 1))
-        c2 += VUMeter(c2, channel=Channel.MONO, visuals=style2, config=FrameConfig(background='dark', outline=OutlineStyle(colour='mid', width=2)))
+        c2 += VUMeter(c2, channel=Channel.MONO, visuals=style2, config=FrameConfig(background=BackgroundStyle(colour='dark'), outline=OutlineStyle(colour='mid', width=2)))
         c2 += TextFrame(c2, text="Laser Glow", config=FrameConfig(align=('centre', 'top')))
 
         # 3. Floating Tick
         needle3 = VUNeedleStyle(colour='light', width=5, length=0.95, radius_pc=0.15)
         style3 = VUMeterStyle(needle=needle3)
         c3 = cols.add_rows(ratios=(5, 1))
-        c3 += VUMeter(c3, channel=Channel.MONO, visuals=style3, config=FrameConfig(background='dark', outline=OutlineStyle(colour='mid', width=2)))
+        c3 += VUMeter(c3, channel=Channel.MONO, visuals=style3, config=FrameConfig(background=BackgroundStyle(colour='dark'), outline=OutlineStyle(colour='mid', width=2)))
         c3 += TextFrame(c3, text="Floating Tick", config=FrameConfig(align=('centre', 'top')))
 
 
@@ -248,9 +248,9 @@ class TestVUMetersScreen(Frame):
 
 
 class VUMeterFrame1(Frame):
-    def __init__(self, parent, config=None, scalers=None, align=('centre', 'middle')):
-        cfg = config if config is not None else FrameConfig(scalers=scalers, align=align)
-        super().__init__(parent, config=cfg)
+    def __init__(self, parent, config=None):
+
+        super().__init__(parent, config=config)
         style = VUMeterStyle(
             endstops=(3 * PI / 4 - 0.2, 5 * PI / 4 + 0.2), 
             needle=VUNeedleStyle(width=4, colour='foreground', length=0.8, radius_pc=1.0),
@@ -261,9 +261,9 @@ class VUMeterFrame1(Frame):
 
 
 class VUMeterFrame2(Frame):
-    def __init__(self, parent, config=None, scalers=None, align=('centre', 'middle')):
-        cfg = config if config is not None else FrameConfig(scalers=scalers, align=align)
-        super().__init__(parent, config=cfg)
+    def __init__(self, parent, config=None):
+
+        super().__init__(parent, config=config)
         
         TICK_W = 3
         TICKLEN = 0.8
@@ -297,9 +297,8 @@ class VUMeterFrame2(Frame):
 
 
 class VUMeterFrame3(Frame):
-    def __init__(self, parent, config=None, scalers=None, align=('left', 'bottom')):
-        cfg = config if config is not None else FrameConfig(scalers=scalers, align=align)
-        super().__init__(parent, config=cfg)
+    def __init__(self, parent, config=None):
+        super().__init__(parent, config=config)
         
         TICK_W = 3
         ARCLEN = 0.70
@@ -326,10 +325,16 @@ class VUMeterFrame3(Frame):
         self += VUMeter(self, channel=Channel.RIGHT, config=FrameConfig(scalers=(0.5, 1.0), align=('right', 'bottom')), visuals=style)
 
 
+VUOutline = OutlineStyle(colour='mid', width=4, opacity=1.0, radius=25, glow_intensity=0.1, softness=0.05)
+VUBackground = BackgroundStyle(colour='background', colour_opacity=0.8, ambient_glow=VUGlow)
+
 class VUMeterFrame4(Frame):
-    def __init__(self, parent, theme='meter1', background=VUBackground, outline=VUOutline, config=None, scalers=None, align=('left', 'bottom')):
-        cfg = config if config is not None else FrameConfig(theme=theme, background=background, outline=outline, scalers=scalers, align=align)
-        super().__init__(parent, config=cfg)
+    def __init__(self, parent, config=None):
+
+
+
+        cfg=config if config is None else FrameConfig(theme='meter1', background=VUBackground, outline=VUOutline, align=('left', 'bottom')   ) 
+        Frame.__init__(self, parent, config=cfg)
         
         TICK_W = 3
         TICK_PC = 0.1
@@ -360,5 +365,32 @@ class VUMeterFrame4(Frame):
         )
 
         cols = self.add_cols(config=FrameConfig(padding=30), padpc=0.05)
-        cols += VUMeter(cols, channel=Channel.LEFT, visuals=style, config=FrameConfig(background=background, outline=outline, theme=theme))
-        cols += VUMeter(cols, channel=Channel.RIGHT, visuals=style, config=FrameConfig(background=background, outline=outline, theme=theme))
+        cols += VUMeter(cols, channel=Channel.LEFT, visuals=style)
+        cols += VUMeter(cols, channel=Channel.RIGHT, visuals=style)
+
+class TrackVUMeterScreen2(Frame):
+
+    @property
+    def title(self):
+        return 'Analogue VU Meters, Roon Album Art, Metadata and progress bar'
+
+    @property
+    def type(self):
+        return 'Test'
+
+    def __init__(self, platform):
+        back = BackgroundStyle(texture_path= 'artist', colour_opacity= 0.7)
+        Frame.__init__(self, platform, config=FrameConfig(background=back, theme='meter1', padding=30))
+        NEEDLE = VUNeedleStyle(width=4, colour='foreground', length=0.8, radius_pc=1.0)
+        ENDSTOPS = (3 * PI / 4, 5 * PI / 4)
+        PIVOT = -0.5
+
+        OUTLINE = OutlineStyle(colour='foreground', width=5, opacity=1.0, radius=10)
+        BACK = BackgroundStyle(colour= 'background', colour_opacity= 0.6)
+        cols = ColFramer(self)
+        cols += VUMeter(cols, Channel.LEFT, visuals=VUMeterStyle(pivot=PIVOT, scale=VUMeterScale(arcs={}), endstops=ENDSTOPS, needle=NEEDLE), config=FrameConfig(square=False, outline=OUTLINE, background=BACK))
+        cols += MetaDataFrame(cols, config=FrameConfig(padding=2, background=BACK))
+        cols += VUMeter(cols, Channel.RIGHT, visuals=VUMeterStyle(pivot=PIVOT, scale=VUMeterScale(arcs={}), endstops=ENDSTOPS, needle=NEEDLE), config=FrameConfig(square=False, outline=OUTLINE, background=BACK))
+
+
+

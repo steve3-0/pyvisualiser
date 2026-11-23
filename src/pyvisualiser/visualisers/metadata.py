@@ -21,7 +21,7 @@ from    pyvisualiser.core.framecore  import Frame, RowFramer, ColFramer, get_ass
 from    pyvisualiser.core.components import Line, Box, Image, Text
 from    pyvisualiser.visualisers.glvisualisers import ShaderFrame
 from    pyvisualiser.core.frame_config import FrameConfig, Centred, FullScale, PI   
-from    pyvisualiser.styles.styles import TextStyle, ProgressStyle, ImageStyle, BarStyle, ShaderStyle
+from    pyvisualiser.styles.styles import TextStyle, PlayProgressStyle, ImageStyle, BarStyle, ShaderStyle
 from    pyvisualiser.styles.profiles import ProfileManager
 from    pyvisualiser.core.base_defs  import *
 
@@ -101,32 +101,24 @@ class MetaDataFrame(Frame):
     def __init__(
         self,
         parent,
+        justify='centre',
         config: Optional[FrameConfig] = None
     ):
         resolved_config = config if config is not None else parent.config
         super().__init__(parent, config=resolved_config)
+        self.justify = justify
 
         self.configure()
 
     def configure(self):
         # Build 4-row stack: Track, Album, Artist, Progress Bar
         rows = RowFramer(self, row_ratios=(1.5, 1, 1, 0.5), padpc=0.3, config=FrameConfig(padding=0.0))
-        rows += MetaData(rows, MetadataKey.TRACK,  visuals=TextStyle(colour='foreground', justify='centre'))
-        rows += MetaData(rows, MetadataKey.ALBUM,  visuals=TextStyle(colour='light', justify='centre'))
-        rows += MetaData(rows, MetadataKey.ARTIST, visuals=TextStyle(colour='light', justify='centre'))
+        rows += MetaData(rows, MetadataKey.TRACK,  visuals=TextStyle(colour='foreground', justify=self.justify))
+        rows += MetaData(rows, MetadataKey.ALBUM,  visuals=TextStyle(colour='light', justify=self.justify))
+        rows += MetaData(rows, MetadataKey.ARTIST, visuals=TextStyle(colour='light', justify=self.justify))
 
         rows += PlayProgressFrame(rows)
 
-    # def update_screen(self, audio=None, media=None):
-    #     self.draw_outline()
-    #     self.draw_background()
-
-    #     draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
-    #     for f in draw_list:
-    #         f.draw_outline()
-    #         f.draw_background()
-    #         f.update_screen(audio=audio, media=media)
-    #     return True
 
 """ Play progress indicators frame for displaying elapsed and remaining time with a visual progress bar."""
 class PlayProgressFrame(Frame):
@@ -134,9 +126,9 @@ class PlayProgressFrame(Frame):
         self,
         parent,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[ProgressStyle] = None
+        visuals: Optional[PlayProgressStyle] = None
     ):
-        self.progress_style = visuals if visuals is not None else ProgressStyle()
+        self.progress_style = visuals if visuals is not None else PlayProgressStyle()
         self.bar_style = self.progress_style.bar_style
         self.text_style = self.progress_style.text_style
 
@@ -145,7 +137,7 @@ class PlayProgressFrame(Frame):
         self.configure()
 
     def configure(self):
-        self.barw = self.abs_w * self.bar_style.barsize_pc if self.bar_style.orient == 'vert' else self.abs_h * self.bar_style.barsize_pc
+        self.barw = self.abs_w * self.progress_style.barsize_pc if self.bar_style.orient == 'vert' else self.abs_h * self.progress_style.barsize_pc
 
         text_sample = " 22:22 "
         self.elapsed = Text(self, fontmax=self.barw, text=text_sample, justify=('left', 'middle'), style=self.text_style, z_order=self.z_order + 1)
@@ -237,17 +229,6 @@ class CircularProgress(Frame):
         seconds = int(duration % 60)
         return f"{minutes:d}:{seconds:02d}"
 
-    # def update_screen(self, audio=None, media=None):
-    #     self.draw_outline()
-    #     self.draw_background()
-    #     draw_list = sorted(self.frames, key=lambda x: getattr(x, 'z_order', 0))
-    #     for f in draw_list:
-    #         f.draw_outline()
-    #         f.draw_background()
-    #         f.update_screen(audio=audio, media=media)
-    #     return True
-
-
 
 '''
 Image based meta data frames
@@ -303,6 +284,7 @@ class MetaImages(ArtFrame):
 
         self.image_style = visuals if visuals is not None else ImageStyle()
         resolved_config = config if config is not None else FrameConfig(square=is_square)
+        # resolved_config = resolved_config.change(square=is_square)
 
         ArtFrame.__init__(
             self,

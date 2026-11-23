@@ -26,20 +26,12 @@ class VU:
         self,
         platform,
         channel: str,
-        decay: float = 0.3,
-        smooth: int = 8,
         ballistics: Optional[MeterBallistics] = None
     ):
         self.platform = platform
         self.channel = str(channel)
 
-        if ballistics is not None:
-            self.ballistics = ballistics
-        else:
-            self.ballistics = MeterBallistics(
-                decay_rate=decay,
-                smoothing_samples=smooth
-            )
+        self.ballistics = ballistics if ballistics is not None else MeterBallistics()
 
         self.current = Smoother(1.0, self.ballistics.smoothing_samples)
         self.peaks = 0.0
@@ -95,16 +87,16 @@ class VUMeter(Frame):
         parent,
         channel: Channel | str = Channel.LEFT,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[VUMeterStyle] = None,
-        ballistics: Optional[MeterBallistics] = None
+        visuals: Optional[VUMeterStyle] = None
     ):
         self.channel = Channel.from_str(str(channel))
-        self.ballistics = ballistics
 
         profile = ProfileManager.get_profile()
         self.style = visuals if visuals is not None else profile.get_style('vu_meter')
         if self.style is None:
             self.style = VUMeterStyle()
+
+        self.ballistics = self.style.ballistics
 
         # resolved_config = config if config is not None else FrameConfig(theme=self.style.theme)
         super().__init__(parent, config=config)
@@ -324,29 +316,26 @@ class VUFrame(Frame):
         parent,
         channel: Channel | str = Channel.LEFT,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[BarStyle] = None,
-        ballistics: Optional[MeterBallistics] = None
+        visuals: Optional[VUBarStyle] = None
     ):
         self.channel = Channel.from_str(str(channel))
-        self.ballistics = ballistics
-        self.bar_style = visuals if visuals is not None else BarStyle()
+        self.vubar_style = visuals if visuals is not None else VUBarStyle()
 
-        # resolved_config = config if config is not None else FrameConfig()
-        super().__init__(parent, config=config)
+        resolved_config = config if config is not None else FrameConfig()
+        super().__init__(parent, config=resolved_config)
         self.configure()
 
     def configure(self):
-        box = (self.abs_w * self.bar_style.barsize_pc, self.abs_h) if self.bar_style.orient == 'vert' else (self.abs_w, self.abs_h * self.bar_style.barsize_pc)
-        # self.bar = Bar(self, align=('centre', 'middle'), box_size=box, bar_style=self.bar_style)
-        self.bar = Bar(self, config=FrameConfig(align=('centre', 'middle')), box_size=box, bar_style=self.bar_style)
-        effective_ballistics = self.ballistics if self.ballistics is not None else MeterBallistics()
-        self.VU = VU(self.platform, self.channel, ballistics=effective_ballistics)
+        box = (self.abs_w * self.vubar_style.barsize_pc, self.abs_h) if self.vubar_style.bar_style.orient == 'vert' else (self.abs_w, self.abs_h * self.vubar_style.barsize_pc)
+        self.barw   = self.abs_w * self.vubar_style.barsize_pc if self.vubar_style.bar_style.orient == 'vert' else self.abs_h * self.vubar_style.barsize_pc 
+   
+        self.bar = Bar(self, config=FrameConfig(align=('centre', 'middle')), box_size=box, bar_style=self.vubar_style.bar_style)
+        self.VU = VU(self.platform, self.channel, ballistics=self.vubar_style.ballistics)
 
     def update_screen(self, audio=None, media=None):
         height, peaks = self.VU.read(audio_snapshot=audio)
         self.bar.draw(0, height, self.barw if hasattr(self, 'barw') else self.w, peaks)
         return True
-    
 
 
 """ Complex VU Meters""" 
@@ -396,8 +385,8 @@ class VUMeterImageFrame(Frame):
         theme = METERS_THEME[type]
         outline = OutlineStyle(width=4, radius=10, colour='light', glow_intensity=0.1, softness=0.2)
         cols = ColFramer(self, config=FrameConfig(padding=30), padpc=0.05)
-        cols += VUMeter(cols, 'left', visuals=style, config=FrameConfig(outline=outline, theme=theme))
-        cols += VUMeter(cols, 'right', visuals=style, config=FrameConfig(outline=outline, theme=theme)   ) 
+        cols += VUMeter(cols, Channel.LEFT, visuals=style, config=FrameConfig(outline=outline, theme=theme))
+        cols += VUMeter(cols, Channel.RIGHT, visuals=style, config=FrameConfig(outline=outline, theme=theme)   ) 
 
 
 class VU2chFrame(Frame):
@@ -406,45 +395,39 @@ class VU2chFrame(Frame):
         self,
         parent,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[BarStyle] = None,
-        ballistics: Optional[MeterBallistics] = None
+        visuals: Optional[VUBarStyle] = None
     ):
         resolved_config = config if config is not None else FrameConfig()
         super().__init__(parent, config=resolved_config)
-        self.bar_style = visuals if visuals is not None else BarStyle()
-        self.ballistics = ballistics
+        self.vubar_style = visuals if visuals is not None else VUBarStyle()
         self.configure()
 
     def configure(self):
-        if self.bar_style.orient == 'horz':
+        if self.vubar_style.bar_style.orient == 'horz':
             self += VUFrame(
                 self,
                 channel=Channel.LEFT,
                 config=FrameConfig(scalers=(1.0, 0.5), align=('centre', 'top')),
-                visuals=self.bar_style,
-                ballistics=self.ballistics
+                visuals=self.vubar_style
             )
             self += VUFrame(
                 self,
                 channel=Channel.RIGHT,
                 config=FrameConfig(scalers=(1.0, 0.5), align=('left', 'bottom')),
-                visuals=self.bar_style,
-                ballistics=self.ballistics
+                visuals=self.vubar_style
             )
         else:
             self += VUFrame(
                 self,
                 channel=Channel.LEFT,
                 config=FrameConfig(scalers=(0.5, 1.0), align=('left', 'middle')),
-                visuals=self.bar_style,
-                ballistics=self.ballistics
+                visuals=self.vubar_style
             )
             self += VUFrame(
                 self,
                 channel=Channel.RIGHT,
                 config=FrameConfig(scalers=(0.5, 1.0), align=('right', 'bottom')),
-                visuals=self.bar_style,
-                ballistics=self.ballistics
+                visuals=self.vubar_style
             )
 
 
@@ -455,14 +438,12 @@ class VUFlipFrame(Frame):
         self,
         parent,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[BarStyle] = None,
-        ballistics: Optional[MeterBallistics] = None,
+        visuals: Optional[VUBarStyle] = None,
         flip_order: tuple[bool, bool] = (True, False)
     ):
         resolved_config = config if config is not None else FrameConfig()
         super().__init__(parent, config=resolved_config)
-        self.bar_style = visuals if visuals is not None else BarStyle()
-        self.ballistics = ballistics
+        self.vubar_style = visuals if visuals is not None else VUBarStyle()
         self.flip_order = flip_order
         self.configure()
 
@@ -471,31 +452,18 @@ class VUFlipFrame(Frame):
         from pyvisualiser.core.framecore import ColFramer, RowFramer
 
         flip_l, flip_r = self.flip_order
-        style_l = dataclasses.replace(self.bar_style, flip=flip_l)
-        style_r = dataclasses.replace(self.bar_style, flip=flip_r)
+        style_l = dataclasses.replace(self.vubar_style, bar_style=replace(self.vubar_style.bar_style, flip=flip_l))
+        style_r = dataclasses.replace(self.vubar_style, bar_style=replace(self.vubar_style.bar_style,flip=flip_r))
 
-        if self.bar_style.orient == 'horz':
-            cols = ColFramer(self, col_ratios=(1, 1), config=FrameConfig.default())
-            cols += VUFrame(cols, channel=Channel.LEFT, visuals=style_l, ballistics=self.ballistics)
-            cols += VUFrame(cols, channel=Channel.RIGHT, visuals=style_r, ballistics=self.ballistics)
+        if self.vubar_style.bar_style.orient == 'horz':
+            cols = ColFramer(self, col_ratios=(1, 1))
+            cols += VUFrame(cols, channel=Channel.LEFT, visuals=style_l)
+            cols += VUFrame(cols, channel=Channel.RIGHT, visuals=style_r)
         else:
-            rows = RowFramer(self, row_ratios=(1, 1), config=FrameConfig.default())
-            rows += VUFrame(rows, channel=Channel.LEFT, visuals=style_l, ballistics=self.ballistics)
-            rows += VUFrame(rows, channel=Channel.RIGHT, visuals=style_r, ballistics=self.ballistics)
+            rows = RowFramer(self, row_ratios=(1, 1))
+            rows += VUFrame(rows, channel=Channel.LEFT, visuals=style_l)
+            rows += VUFrame(rows, channel=Channel.RIGHT, visuals=style_r)
 
-# from dataclasses import dataclass, replace
-# class VUHorzFrame(Frame):
-#     def __init__(self, parent, channel, visuals=None):
-
-
-#         Frame.__init__(self, parent)
-#         cols = ColFramer(self, col_ratios=(1,3))
-#         # cols = self
-#         channel_text = ' L' if channel=='left' else ' R'
-#         cols += TextFrame(cols, text=channel_text)
-  
-#         style=visuals replace(orient='horz')
-#         cols += VUFrame(cols, channel=channel, visuals=style)
 
 from typing import Optional
 from dataclasses import replace
@@ -507,14 +475,14 @@ class VUHorzFrame(Frame):
         parent,
         channel: Channel | str = Channel.LEFT,
         config: Optional[FrameConfig] = None,
-        visuals: Optional[BarStyle] = None
+        visuals: Optional[VUBarStyle] = None
     ):
         super().__init__(parent, config=config or FrameConfig())
         self.channel = Channel.from_str(str(channel))
         
         # Ensure the passed BarStyle is configured for horizontal orientation
-        base_bar_style = visuals if visuals is not None else BarStyle()
-        self.bar_style = replace(base_bar_style, orient='horz')
+        base_vubar_style = visuals if visuals is not None else VUBarStyle()
+        self.vubar_style = replace( base_vubar_style, bar_style=replace(base_vubar_style.bar_style, orient='horz'))
         
         self.configure()
 
@@ -531,7 +499,7 @@ class VUHorzFrame(Frame):
             config=FrameConfig(align=(HorizontalAlign.CENTRE, VerticalAlign.MIDDLE)),
             visuals=TextStyle(colour='light')
         )
-        cols += VUFrame(cols, channel=self.channel, visuals=self.bar_style)
+        cols += VUFrame(cols, channel=self.channel, visuals=self.vubar_style)
 
 class VU2chHorzFrame(Frame):
     def __init__(self, parent, tip=False, config=None, visuals=None):
@@ -541,6 +509,6 @@ class VU2chHorzFrame(Frame):
 
         # Pass style, tip, and component-specific arguments down to the subframes
         rows = RowFramer(self)
-        rows += VUHorzFrame(rows, 'left', visuals=visuals)
-        rows += VUHorzFrame(rows, 'right', visuals=visuals)
+        rows += VUHorzFrame(rows, Channel.LEFT, visuals=visuals)
+        rows += VUHorzFrame(rows, Channel.RIGHT, visuals=visuals)
         # self += VUFrame(self, channel='left', visuals=visuals)

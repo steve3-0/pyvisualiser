@@ -65,10 +65,6 @@ class Bar(Frame):
         - left or right
         - peak lines
     """
-    # def __init__(self, parent, scalers=None, align=('centre', 'bottom'), theme=None,
-    #              box_size=(100, 100), bar_style=None):
-
-    #     Frame.__init__(self, parent, align=align, theme=theme, scalers=scalers)
 
     def __init__(self, parent, config:Optional[FrameConfig] = None, 
                  box_size=(100, 100), bar_style=None):
@@ -400,7 +396,7 @@ class Image:
         self.image_cache = Cache(Image.DEFAULT_CACHE)
         self.path        = path
         self.parent      = parent
-        self.opacity     = Image.DEFAULT_OPACITY if opacity is None else opacity
+        self.opacity     = Image.DEFAULT_OPACITY if opacity is None or opacity > Image.DEFAULT_OPACITY else opacity
         self.old_image_data = None
         self.target_wh   = parent.abs_rect()[-2:] if target_wh is None else target_wh 
         self._gl_texture = None

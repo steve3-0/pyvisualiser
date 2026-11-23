@@ -24,8 +24,8 @@ from   screens3 import *
 from   VUscreens import *
 from   testscreens import *
 from   test_api_coverage import *
-from   test_advanced_visuals import *
-from   gltest import *
+from   tests.test_visuals import *
+from   tests.test_shader import *
 from   pyvisualiser import ScreenController
 import platform
 
