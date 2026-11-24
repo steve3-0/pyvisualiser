@@ -278,7 +278,7 @@ class TrackSpectrumScreen2(Frame):
         cols += StereoSpectrumFrame(cols)
         
         artoutline = OutlineStyle(colour='background', width=5)
-        cols += MetaImages(cols, key=MetadataKey.ARTIST, config=FrameConfig(scalers=(0.8, 1.0), align=('left', 'middle'), outline=artoutline), visuals=ImageStyle(opacity=100))
+        cols += MetaImages(cols, key=MetadataKey.ARTIST, config=FrameConfig(scalers=(0.8, 1.0), align=('left', 'middle'), outline=artoutline), visuals=ImageStyle(opacity=0.9))
         cols += MetaDataFrame(cols, config=FrameConfig(scalers=(1.0, 1.0), align=('right', 'middle')))
 
 
@@ -311,7 +311,7 @@ class TrackSpectrumScreen3(Frame):
         self += spectrumframe
         meta = self.add_rows(config=FrameConfig(scalers=(0.3, 1.0), align=('right', 'middle')))
         meta += MetaData(meta, key=MetadataKey.TRACK, visuals=TextStyle(colour='mid'))
-        meta += MetaImages(meta, key=MetadataKey.ARTIST, visuals=ImageStyle(opacity=120))
+        meta += MetaImages(meta, key=MetadataKey.ARTIST, visuals=ImageStyle(opacity=0.5))
         meta += MetaData(meta, key=MetadataKey.ARTIST, visuals=TextStyle(colour='dark'))
 
 
@@ -324,7 +324,7 @@ class TrackSpectrumScreen4(Frame):
     def __init__(self, platform):
         super().__init__(platform, config=FrameConfig(theme='ocean'))
 
-        self += MetaImages(self, key=MetadataKey.ALBUM, config=FrameConfig(scalers=(1.0, 0.7), align=('right', 'middle'), outline=OutlineStyle(colour='light', width=1)), visuals=ImageStyle(opacity=255))
+        self += MetaImages(self, key=MetadataKey.ALBUM, config=FrameConfig(scalers=(1.0, 0.7), align=('right', 'middle'), outline=OutlineStyle(colour='light', width=1)), visuals=ImageStyle(opacity=1.0))
         self += PlayProgressFrame(self, config=FrameConfig(scalers=(0.9, 0.05), align=('centre', 'bottom')))
 
         spectrumframe = Frame(self, config=FrameConfig(scalers=(0.7, 0.8), align=('left', 'middle')))

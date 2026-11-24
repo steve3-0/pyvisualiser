@@ -72,7 +72,7 @@ class EdgeLightStyle:
 class ShadowStyle:
     """Offset drop shadow for cards and frames."""
     colour: Union[Tuple[int, int, int], str] = (0, 0, 0)
-    opacity: int = 255
+    opacity: int = 1.0
     offset: Tuple[int, int] = (10, 10)
     softness: float = 0.5
     
@@ -109,6 +109,7 @@ class ImageStyle:
     border_colour: str = 'mid'
     glow_intensity: float = 0.0
     glow_colour: Optional[str] = None
+    default_texture: str = 'blank_art.png'
 
 
 @dataclass(frozen=True)

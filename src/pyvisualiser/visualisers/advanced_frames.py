@@ -39,7 +39,7 @@ class EchoWaveFrame(Frame):
         if len(self.wave_history) > self.history_size:
             self.wave_history.pop()
 
-    def update_screen(self):
+    def update_screen(self, audio=None, media=None):
         # Get raw samples (int16)
         waveform = self.platform.samples[self.channel]
         self.update_history(waveform)
@@ -137,7 +137,7 @@ class KaleidoscopeFrame(Frame):
             
         return tentacles
 
-    def update_screen(self):
+    def update_screen(self, audio=None, media=None):
         fft_data = self.platform.bins[self.channel]
         
         # Calculate bass energy (approx first 10% of bins)
@@ -249,7 +249,7 @@ class PulseOrbFrame(Frame):
                 new_particles.append(p)
         self.particles = new_particles
 
-    def update_screen(self):
+    def update_screen(self, audio=None, media=None):
         amplitude = self.platform.vu[self.channel]
         peak = self.platform.peak.get(self.channel, amplitude)
         self.smoothing_amp = (self.smoothing_amp * 0.9) + (amplitude * 0.1)
@@ -336,7 +336,7 @@ class SpectrumWaveFrame(Frame):
         if len(self.wave_history) > self.history_size:
             self.wave_history.pop()
 
-    def update_screen(self):
+    def update_screen(self, audio=None, media=None):
         # Recalculate if width has changed
         if len(self.bar_freqs) > self.w * 1.2 or len(self.bar_freqs) < self.w / 2:
             self._calculate_bar_freqs()
@@ -427,7 +427,7 @@ class FreqWaveFrame(Frame):
                 result.append(data[idx])
         return result
 
-    def update_screen(self):
+    def update_screen(self, audio=None, media=None):
         # 1. Get Data
         if self.mode == 'rms':
             val = self.platform.vu[self.channel]

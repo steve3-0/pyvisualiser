@@ -255,8 +255,9 @@ class ArtFrame(Frame):
     def configure(self):
         self.image_container = Image(
             self,
-            opacity=int(self.image_style.opacity * 255),
-            reflection=self.image_style.reflection
+            opacity=self.image_style.opacity,
+            reflection=self.image_style.reflection,
+            default_image=self.image_style.default_texture
         )
 
     def update_screen(self, audio=None, media=None):

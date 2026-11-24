@@ -392,15 +392,16 @@ class Bar(Frame):
 class Image:
     DEFAULT_OPACITY = 255
     DEFAULT_CACHE   = 300
-    def __init__(self, parent, wh=None, path=None, align=None, scalers=None, opacity=None, outline=None, target_wh=None, reflection=None):
+    def __init__(self, parent=None, path=None, opacity=None, target_wh=None, reflection=None, default_image='blank_art.png'):
         self.image_cache = Cache(Image.DEFAULT_CACHE)
         self.path        = path
         self.parent      = parent
-        self.opacity     = Image.DEFAULT_OPACITY if opacity is None or opacity > Image.DEFAULT_OPACITY else opacity
+        self.opacity     = Image.DEFAULT_OPACITY if opacity is None or opacity > Image.DEFAULT_OPACITY else opacity*255
         self.old_image_data = None
         self.target_wh   = parent.abs_rect()[-2:] if target_wh is None else target_wh 
         self._gl_texture = None
         self.reflection  = reflection
+        self.default_path= default_image
 
         if path is not None:
             self.scaleInProportion(path)
@@ -436,51 +437,50 @@ class Image:
         return cropped_surface
 
     def scaleInProportion(self, image_ref, target_wh=None):
-        if image_ref is None: return
-        if target_wh is None: target_wh = self.target_wh
+            if target_wh is None: target_wh = self.target_wh
 
-        imagesurface = None
-        try:
-            if 'http' in image_ref:
-                path = self.download_image(image_ref) 
-                if path is None: return None
-            else:
-                path = image_ref
-
-            imagesurface = pygame.image.load(path).convert_alpha()
+            # Use a stable cache key even if image_ref is None or empty
+            cache_key = image_ref if image_ref else "_BLANK_ART_SENTINEL"
             
-        except pygame.error as e:
-            print(f"Image.scaleInProportion ERROR: Pygame failed to load image '{image_ref}'. Error: {e}")
-            return None
-        except Exception as e:
-            print(f"Image.scaleInProportion UNEXPECTED ERROR during load '{image_ref}': {e}")
-            return None
+            cached_image = self.image_cache.find(cache_key)
+            if cached_image is not None:
+                return cached_image
 
-        if imagesurface is None:
-            return None
+            resolved_ref = image_ref if image_ref else get_asset_path('defaults', self.default_path)
 
-        image = self.scaleInProportion_and_crop(imagesurface, target_wh)
-        self.image_cache.add(image_ref, image)
-        return image
+            imagesurface = None
+            try:
+                if 'http' in resolved_ref:
+                    path = self.download_image(resolved_ref) 
+                    if path is None: 
+                        fallback = self._get_fallback_surface(target_wh)
+                        self.image_cache.add(cache_key, fallback)
+                        return fallback
+                else:
+                    path = resolved_ref
+
+                imagesurface = pygame.image.load(path).convert_alpha()
+                
+            except Exception as e:
+                fallback = self._get_fallback_surface(target_wh)
+                self.image_cache.add(cache_key, fallback)
+                return fallback
+
+            if imagesurface is None:
+                fallback = self._get_fallback_surface(target_wh)
+                self.image_cache.add(cache_key, fallback)
+                return fallback
+
+            image = self.scaleInProportion_and_crop(imagesurface, target_wh)
+            self.image_cache.add(cache_key, image)
+            return image
+
+
 
     def new_content_available(self, image_data=None):
         if image_data is None:  image_data = self.path  
         return image_data != self.old_image_data
 
-    def draw(self, image_data=None, coords=None):   
-        if coords is None: coords = self.parent.abs_origin()
-        if image_data is None:  image_data = self.path   
-
-        image = self.image_cache.find(image_data)
-        if image is None:   
-            image = self.scaleInProportion(image_data)
-
-        if image is not None:
-            if image_data != self.old_image_data:
-                self._gl_texture = None
-
-            self.parent.platform.renderer.blit(image, coords, texture_holder=self, opacity=self.opacity, reflection=self.reflection)
-            self.old_image_data = image_data
 
     def __del__(self):
         if hasattr(self, '_gl_texture') and self._gl_texture is not None:
@@ -491,22 +491,24 @@ class Image:
             self._gl_texture = None
 
     def draw(self, image_data=None, coords=None):   
-        if coords is None: coords = self.parent.abs_origin()
-        if image_data is None:  image_data = self.path   
+            if coords is None: coords = self.parent.abs_origin()
+            if image_data is None:  image_data = self.path   
 
-        image = self.image_cache.find(image_data)
-        if image is None:   
-            image = self.scaleInProportion(image_data)
+            cache_key = image_data if image_data else "_BLANK_ART_SENTINEL"
+            image = self.image_cache.find(cache_key)
+            
+            if image is None:   
+                image = self.scaleInProportion(image_data)
 
-        if image is not None:
-            if image_data != self.old_image_data:
-                # Release old texture immediately on image change
-                if self._gl_texture is not None:
-                    self._gl_texture.release()
-                    self._gl_texture = None
+            if image is not None:
+                if image_data != self.old_image_data:
+                    if self._gl_texture is not None:
+                        self._gl_texture.release()
+                        self._gl_texture = None
 
-            self.parent.platform.renderer.blit(image, coords, texture_holder=self, opacity=self.opacity, reflection=self.reflection)
-            self.old_image_data = image_data
+                self.parent.platform.renderer.blit(image, coords, texture_holder=self, opacity=self.opacity, reflection=self.reflection)
+                self.old_image_data = image_data
+
 
 class ArcsOctaves(Frame):
     """ Lines are for drawing meter needles, oscilogrammes etc """
@@ -950,6 +952,7 @@ class Outline:
 
         if isinstance(outline, dict):
             self.style = OutlineStyle(**outline)
+            print("WARNING>Outline style using deprecated dict")
         elif isinstance(outline, OutlineStyle):
             self.style = outline
         else:

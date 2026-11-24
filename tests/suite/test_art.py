@@ -19,13 +19,14 @@ class ImageTestScreen(Frame):
         return 'Test'
 
     def __init__(self, platform):
-        super().__init__(platform, config=FrameConfig(theme='hifi', outline={'width': 20, 'colour': 'alert'}, padding=2))
+        super().__init__(platform, config=FrameConfig(theme='hifi', outline=OutlineStyle(colour='alert', width= 20), padding=2))
         rows = RowFramer(self, row_ratios=(1, 1), config=FrameConfig(padding=20))
-        colframe = ColFramer(rows, col_ratios=(1, 1, 2), padpc=0, config=FrameConfig(background=BackgroundStyle(colour='mid'), padding=0, outline=OutlineStyle(colour= 'alert', width= 5)))
+        colframe = ColFramer(rows, col_ratios=(1, 1, 2), padpc=0, config=FrameConfig(background=BackgroundStyle(colour='mid',colour_opacity=0.5), padding=0, outline=OutlineStyle(colour= 'alert', width= 5)))
         colframe += MetaImages(colframe, key='album', visuals=ImageStyle(opacity=1.0, reflection=True), config=FrameConfig(outline=OutlineStyle(colour= 'alert', width= 1)))
         colframe += TextFrame(colframe, text='Test Art', 
                               config=FrameConfig(background=BackgroundStyle(colour='light'), outline=OutlineStyle(colour='alert', width= 2)))
-        colframe += MetaImages(colframe, key='artist', visuals=ImageStyle(opacity=0.7, reflection=ReflectionStyle(size= 0.4, opacity= 0.3)), config=FrameConfig(outline={'colour': 'alert', 'width': 1}))
+        colframe += MetaImages(colframe, key='artist', visuals=ImageStyle(opacity=0.7, reflection=ReflectionStyle(size= 0.4, opacity= 0.3)), 
+                               config=FrameConfig(outline=OutlineStyle(colour='alert', width= 1),background=None))#BackgroundStyle(colour='dark')))
 
 class ReflectionTestScreen(Frame):
 
@@ -46,7 +47,7 @@ class ReflectionTestScreen(Frame):
         col1 += TextFrame(col1, text='Default', config=FrameConfig(background=BackgroundStyle('dark'), padding=10,align=('centre', 'middle')))
        
         col2 = RowFramer(cols, row_ratios=(5, 1))
-        col2 += MetaImages(col2, key='artist', visuals=ImageStyle(reflection={'size': 0.5, 'opacity': 0.7}), 
+        col2 += MetaImages(col2, key='artist', visuals=ImageStyle(reflection=ReflectionStyle(size= 0.5, opacity= 0.7)), 
                            config=FrameConfig(outline=OutlineStyle(colour='alert', width= 2), z_order=1))
         col2 += TextFrame(col2, text='Strong', config=FrameConfig(align=('centre', 'middle')))
         col3 = RowFramer(cols, row_ratios=(5, 1))
@@ -66,7 +67,7 @@ class ArtistScreen(Frame):
     def __init__(self, platform):
         Frame.__init__(self, platform, config=FrameConfig(theme='zomp'))
         cols = ColFramer(self, config=FrameConfig(        background = BackgroundStyle(colour='background')))
-        cols += MetaImages(cols, key='album', config=FrameConfig(outline=None))
+        cols += MetaImages(cols, key='artist', config=FrameConfig(outline=None))
         cols += MetaDataFrame(cols)
         cols += VUFlipFrame(cols, visuals=VUBarStyle(bar_style=BarStyle(orient='vert')))
 
@@ -82,8 +83,9 @@ class ImageTestScreen2(Frame):
 
     def __init__(self, platform):
         Frame.__init__(self, platform, config=FrameConfig(theme='zomp'))
-        cols = ColFramer(self, ratios=(3,2,1), padpc=0.1, config=FrameConfig(padding=10))
+        cols = ColFramer(self, ratios=(4,3,2,2), padpc=0.1, config=FrameConfig(padding=10))
         cols += MetaImages(cols, key='album', config=FrameConfig(outline=OutlineStyle(width=2)))
         cols += MetaImages(cols, key='album', config=FrameConfig(outline=OutlineStyle(width=2)))
         cols += MetaImages(cols, key='album', config=FrameConfig(outline=OutlineStyle(width=2)))
+        cols += MetaImages(cols, key='particles.jpg', config=FrameConfig(outline=OutlineStyle(width=2)))
      

@@ -607,28 +607,24 @@ class Frame(Geometry):
     # update the screen with the frame contents
     # whether the background and outline is drawn depends on whether the frame update is per frame or per metadata change
     #
-    def update_screen(self, **kwargs):
+    def update_screen(self, audio=None, media=None):
         # Order is critical: draw_outline should register its Glow as a pre-pass BEFORE the background
         # so that the glow sits behind the background layer.
         self.draw_outline()
-        self.draw_background()
+        self.draw_background(audio=None, media=None)
 
         # Sort frames by z_order for drawing (lowest first)
         draw_list = sorted(self.frames, key=lambda x: x.z_order)
         for f in draw_list:
             # print("Frame.draw> ", type(f).__name__, "has draw ", hasattr(f, 'draw'), "has undraw ", hasattr(f, 'undraw'))
             f.draw_outline()
-            f.draw_background()
-            f.update_screen(**kwargs)  
+            f.draw_background(audio=None, media=None)
+            f.update_screen(audio=None, media=None)  
 
 
-    def draw_background(self):
+    def draw_background(self, audio=None, media=None):
         # print("Frame.draw_background", type(self).__name__, full, self.abs_background())
-        self.background_frame.draw()
-
-    def always_draw_background(self):
-        # print("Frame.draw_background", type(self).__name__, full, self.abs_background())
-        self.background_frame.per_frame_update()
+        self.background_frame.draw(audio=None, media=None)
 
     def draw_outline(self):
         # if self.outline_frame is not None and full: # --> need to draw it everytime else the background erases it

@@ -36,9 +36,9 @@ class Background:
 
 
 
-    def draw(self):
+    def draw(self, audio=None, media=None):
         if self.background_base is not None:
-            self.background_base.draw()
+            self.background_base.draw(audio=None, media=None)
 
     def __str__(self):
         return str(self.background)
@@ -97,28 +97,69 @@ class BackgroundLighting:
             if hasattr(audio_processor, 'get_analysis'):
                 self.audio_analysis = audio_processor.get_analysis() or {}
 
-
-class BackgroundSurface:
-    """Manages static background textures."""
-    def __init__(self, style: BackgroundStyle, context: RenderContext):
+class BackgroundImage:
+    """Manages static background textures and dynamic live artwork (album/artist) as GPU textures."""
+    def __init__(self, parent, style: BackgroundStyle, context: RenderContext):
         self.style = style
         self.context = context
+        self.parent = parent
         self.texture: moderngl.Texture | None = None
+        self._last_art_ref = None
+
         self._load_texture()
 
     def _load_texture(self):
-        if not self.style.texture_path:
+        ref = self.style.texture_path
+        if not ref:
+            return
+
+        if ref in ('album', 'artist'):
+            # Will be updated dynamically in update()
             return
 
         try:
-            path = get_asset_path('backgrounds', self.style.texture_path)
+            path = get_asset_path('backgrounds', ref)
             surface = pygame.image.load(path).convert_alpha()
+            surface = pygame.transform.flip(surface, False, True)
             rgba_data = pygame.image.tostring(surface, "RGBA", False)
             self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
             self.texture.build_mipmaps()
             self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
         except Exception as e:
-            print(f"BackgroundSurface> Failed to load texture '{self.style.texture_path}': {e}")
+            print(f"BackgroundImage> Failed to load texture '{ref}': {e}")
+
+    def update_dynamic_art(self):
+        """Polls platform for live album/artist art and updates the GPU texture if changed."""
+        ref = self.style.texture_path
+        if ref not in ('album', 'artist'):
+            return
+
+        art_ref = (
+            self.parent.platform.album_art if ref == 'album' 
+            else self.parent.platform.artist_art
+        )
+
+        if art_ref == self._last_art_ref:
+            return  # Unchanged, keep current texture
+            
+        self._last_art_ref = art_ref
+        
+        try:
+            # Resolve image surface via Image utility
+            img_util = Image(self.parent, path=art_ref, target_wh=self.parent.abs_background()[-2:])
+            surface = img_util.scaleInProportion(art_ref)
+            if surface is None:
+                return
+            surface = pygame.transform.flip(surface, False, True)
+            rgba_data = pygame.image.tostring(surface, "RGBA", False)
+            if self.texture is not None:
+                self.texture.release()
+                
+            self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
+            self.texture.build_mipmaps()
+            self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+        except Exception as e:
+            print(f"BackgroundImage> Failed to load dynamic art '{art_ref}': {e}")
 
     def __del__(self):
         if hasattr(self, 'texture') and self.texture is not None:
@@ -126,7 +167,7 @@ class BackgroundSurface:
                 self.texture.release()
             except Exception:
                 pass
-            self.texture = None
+            self.texture = None            
 
 
 class BackgroundRenderPass(RenderPass):
@@ -350,10 +391,10 @@ class BackgroundRenderPass(RenderPass):
         }
     """
 
-    def __init__(self, context: RenderContext, style: BackgroundStyle, surface: BackgroundSurface, lighting: BackgroundLighting):
+    def __init__(self, context: RenderContext, style: BackgroundStyle, image: BackgroundImage, lighting: BackgroundLighting):
         super().__init__(context)
         self.style = style
-        self.surface = surface
+        self.image = image
         self.lighting = lighting
         self.start_time = time.time()
         self.viewport: tuple[int, int, int, int] | None = None  # Physical (x, y, w, h) for sub-frames
@@ -517,8 +558,8 @@ vec4 run_pattern(vec2 screenSize, vec2 screen_coords) {{
             self.prog['u_colour_opacity'].value = op
 
         # Texture Uniforms
-        if self.surface.texture:
-            self.surface.texture.use(location=0)
+        if self.image.texture:
+            self.image.texture.use(location=0)
             self.prog['u_texture'].value = 0
             op=float(self.style.texture_opacity)
             if op > 1.0:
@@ -630,14 +671,15 @@ class BackgroundBase:
         self.frame = frame
         self.style = style
         self.engine = frame.platform.gfx_driver
+        self.artwork = None
 
         if not hasattr(self.engine, 'render_context'):
             print("BackgroundBase> Warning: OpenGL Backgrounds require GraphicsDriverGL.")
             return
 
         self.lighting = BackgroundLighting(style)
-        self.surface = BackgroundSurface(style, self.engine.render_context)
-        self.render_pass = BackgroundRenderPass(self.engine.render_context, style, self.surface, self.lighting)
+        self.image = BackgroundImage(frame, style, self.engine.render_context)
+        self.render_pass = BackgroundRenderPass(self.engine.render_context, style, self.image, self.lighting)
         self.render_pass.colour_resolver = self._resolve_colour
 
     def _resolve_colour(self, colour_name):
@@ -648,24 +690,47 @@ class BackgroundBase:
 
     def update(self):
         self.lighting.update(self.frame.platform)
+        if hasattr(self, 'image') and self.image:
+            self.image.update_dynamic_art()
 
-    def draw(self):
+    def draw(self, audio=None, media=None):
         self.update()
 
+        # If a shadow is specified in BackgroundStyle, draw the drop shadow rect via renderer first
+        if self.style.shadow is not None:
+            sh = self.style.shadow
+            rect_coords = self.frame.abs_background()
+            offset_x, offset_y = sh.offset
+            shadow_coords = (rect_coords[0] + offset_x, rect_coords[1] + offset_y, rect_coords[2], rect_coords[3])
+            
+            # Resolve shadow colour
+            col = sh.colour
+            if isinstance(col, str):
+                resolved_col = self.frame.colours.get(col)
+            else:
+                resolved_col = col
+            
+            shadow_rgba = list(resolved_col[:3]) + [sh.opacity]
+            
+            # Render shadow rectangle via GeometryPass with softness
+            self.engine.geometry_pass.draw_rect(
+                shadow_rgba, 
+                shadow_coords, 
+                border_radius=getattr(self.style, 'radius', 0), 
+                softness=sh.softness
+            )
+            
         if hasattr(self.engine, 'compositor'):
-            # Detect whether this frame is the full screen or a localized sub-frame
             x, y, w, h = self.frame.abs_background()
             screen_w = self.frame.platform.W
             screen_h = self.frame.platform.H
             dpi_scale = getattr(self.engine.render_context, 'dpi_scale', 1.0)
 
-            # Check if this frame matches the full logical screen bounds
             is_fullscreen = (x <= 0 and y <= 0 and w >= screen_w and h >= screen_h)
 
             if is_fullscreen:
                 self.render_pass.viewport = None
             else:
-                # Sub-frame (e.g. VU meter background): compute physical pixel bounds with OpenGL bottom-up Y
                 gl_y = screen_h - (y + h)
                 phys_x = int(round(x * dpi_scale))
                 phys_y = int(round(gl_y * dpi_scale))

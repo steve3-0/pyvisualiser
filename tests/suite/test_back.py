@@ -86,7 +86,7 @@ class BloomImageTestScreen(Frame):
         return 'Test'
 
     def __init__(self, platform):
-        bg = BackgroundStyle(texture_path='particles.jpg', texture_opacity=1.0)
+        bg = BackgroundStyle(texture_path='artist', texture_opacity=0.6)
         super().__init__(platform, config=FrameConfig(background=bg))
 
         cols = self.add_cols(ratios=(1, 2), config=FrameConfig(padding=20))
@@ -103,7 +103,7 @@ class BloomImageTestScreen(Frame):
         # Right: Horizontal Stereo VU with BarEffects bloom
         eff = BarEffects(threshold=0.5, scale=2.0, blur=0.8, alpha=80)
         bar_vis = VUBarStyle(barsize_pc=0.8, bar_style=BarStyle(orient='horz', effects=eff))
-        bg_vu = BackgroundStyle(colour='dark', colour_opacity=0.39)
+        bg_vu = BackgroundStyle(colour='dark', colour_opacity=0.0)
         cols += VU2chHorzFrame(
             cols,
             visuals=bar_vis,
@@ -240,11 +240,38 @@ class BackgroundEffectsScreen0(Frame):
 
     def __init__(self, platform):
         cloud_style = CloudStyle(opacity=0.5)
-        edge = EdgeLightStyle(enabled=True, intensity=0.5, width=0.5, softness=2.0, audio_reactivity=0.0)
+        edge = EdgeLightStyle(enabled=True, intensity=0.8, width=0.5, softness=2.0, audio_reactivity=0.0)
+        s1 = BackgroundStyle(colour='mid', cloud=CloudStyle(opacity=0.5))
         s2 = BackgroundStyle(colour='background', cloud=cloud_style, edge_light=edge)
 
-        super().__init__(platform, config=FrameConfig(theme='hifi', background=s2))
+        super().__init__(platform, config=FrameConfig(theme='hifi', padding=10))
+        cols = ColFramer(self, padpc=0.1)
+        cols += Frame(cols, config=FrameConfig(background=s1))
+        cols += Frame(cols, config=FrameConfig(background=s2))
 
+class BackgroundEffectsScreen3(Frame):
+    """Volumetric Clouds & Panel Edge Lighting."""
+    @property
+    def title(self):
+        return 'Background Effects 0: Caustic, background ambient'
+
+    @property
+    def type(self):
+        return 'Test'
+
+    def __init__(self, platform):
+        cloud_style = CloudStyle(opacity=0.5)
+        edge = EdgeLightStyle(enabled=True, intensity=0.8, width=0.5, softness=2.0, audio_reactivity=0.0)
+        s1 = BackgroundStyle(texture_path='album', texture_opacity=0.6)
+        s2 = BackgroundStyle(texture_path='artist', texture_opacity=0.8, edge_light=edge)
+        s3 = BackgroundStyle(texture_path='particles.jpg', texture_opacity=0.6)
+        out= OutlineStyle(colour='foreground', width=5)
+
+        super().__init__(platform, config=FrameConfig(theme='hifi', padding=10))
+        cols = ColFramer(self, padpc=0.1)
+        cols += TextFrame(cols, text="album", config=FrameConfig(background=s1,outline=out))
+        cols += TextFrame(cols, text="artist", config=FrameConfig(background=s2,outline=out))
+        cols += TextFrame(cols, text="path", config=FrameConfig(background=s3,outline=out))
 
 class ShadowTestScreen(Frame):
 
@@ -257,12 +284,12 @@ class ShadowTestScreen(Frame):
         return 'Test'
 
     def __init__(self, platform):
-        Frame.__init__(self, platform, config=FrameConfig(background=BackgroundStyle(texture_path='particles.jpg', texture_opacity=0.2)))
+        Frame.__init__(self, platform, config=FrameConfig(background=BackgroundStyle(texture_path='particles.jpg', texture_opacity=0.5)))
         cols = self.add_cols(ratios=(1, 1, 1), padpc=0.2, config=FrameConfig(padding=40))
 
         # 1. Hard Offset Drop Shadow
         s1 = ShadowStyle(colour=(0, 0, 0), opacity=1.0, offset=(15, 15), softness=0.0)
-        out1 = OutlineStyle(colour='foreground', width=2, radius=10)
+        out1 = OutlineStyle(colour='foreground', width=2, radius=20)
         bg1 = BackgroundStyle(colour='light', colour_opacity=1.0, shadow=s1)
         cols += TextFrame(
             cols,

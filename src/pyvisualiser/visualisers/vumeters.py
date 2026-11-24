@@ -110,7 +110,7 @@ class VUMeter(Frame):
 
         if self.style.texture_path is not None:
             self.path = get_asset_path('VU Images', self.style.texture_path)
-            self.bgdimage = Image(self, align=('centre', 'middle'), path=self.path, outline=self.config.outline, opacity=int(self.style.texture_opacity * 255))
+            self.bgdimage = Image(self, path=self.path, opacity=int(self.style.texture_opacity))
         else:
             self.path = None
             current_marks = self.style.scale.marks if self.style.scale and self.style.scale.marks is not None else {}
@@ -171,7 +171,7 @@ class VUMeter(Frame):
                          radius=radius * self.style.needle.length, 
                          colour='alert')
 
-    def update_screen(self):
+    def update_screen(self, audio=None, media=None):
         # self.draw_background(True)
         if self.path is None:
             self.drawVUBackground()

@@ -305,7 +305,7 @@ class ScreenController:
                     # Re-add GeometryPass as UI pass
                     self.platform.compositor.add_ui_pass(self.platform.gfx_driver.geometry_pass)
 
-                screen.update_screen()
+                screen.update_screen(audio=None, media=None)
                 drawing_time_ms = (time.perf_counter() - start_draw) * 1000
 
                 # 2. Draw and Render the Frame
@@ -315,9 +315,6 @@ class ScreenController:
                 # screen = self.screens[self.activeScreen]
                 # title = screen.title + " > " + type(screen).__name__ if hasattr(screen, 'title') else type(screen).__name__
                 # self.events.Control('loop_start', text=title)
-
-                # screen.update_screen()
-                # drawing_time_ms = (time.perf_counter() - start_draw) * 1000
 
                 self.events.Control('loop_end')
                 render_time_ms = ((time.perf_counter() - start_draw) * 1000) - drawing_time_ms
