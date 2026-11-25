@@ -112,7 +112,7 @@ class H2(Frame):
         SpectrumBackground = BackgroundStyle(colour='background', ambient_glow=SpectrumGlow, edge_light=Edge, texture_path='particles.jpg', texture_opacity=0.6)
         SimpleOutline = OutlineStyle(colour='mid', width=1, radius=10, opacity=1.0, glow_intensity=0.0, softness=0.0)
         Frame.__init__(self, platform, config=FrameConfig(theme='hifi', background=SpectrumBackground))
-        cols = ColFramer(self, col_ratios=(1, 2), padpc=0.0, config=FrameConfig(padding=10))
+        cols = ColFramer(self, col_ratios=(1, 2), padpc=0.05, config=FrameConfig(padding=10))
         cols += MetaImages(cols, key=MetadataKey.ALBUM, visuals=ImageStyle(opacity=1.0), config=FrameConfig(padding=10, background=None, outline=ArtOutline))
         centre = RowFramer(cols, row_ratios=(1.5, 3, 1), padpc=0.0, config=FrameConfig(padding=0))
         metadata = RowFramer(centre, padpc=0.0)
@@ -159,7 +159,7 @@ class H4(Frame):
 
     def __init__(self, platform):
         Frame.__init__(self, platform, config=FrameConfig(theme='hifi', padding=0, background=ScreenBackground))
-        colframe = ColFramer(self, padpc=0.0, col_ratios=(3, 4, 0.8), config=FrameConfig(padding=10, background=None))
+        colframe = ColFramer(self, padpc=0.05, col_ratios=(3, 4, 0.8), config=FrameConfig(padding=15, background=None))
         image = RowFramer(colframe, row_ratios=(4, 1), config=FrameConfig(outline=ArtOutline))
         image += MetaImages(image, key=MetadataKey.ARTIST, config=FrameConfig(background=BackgroundStyle(colour='background', colour_opacity=1.0)), visuals=ImageStyle(reflection=True))
         image += MetaData(image, key=MetadataKey.ARTIST, visuals=TextStyle(colour='mid', justify='centre'))
@@ -212,13 +212,15 @@ class H6(Frame):
 
     def __init__(self, parent):
         Frame.__init__(self, parent, config=FrameConfig(theme='hifi', background=ScreenBackground))
-        cols = ColFramer(self, col_ratios=(4, 7, 1), padpc=0.0, config=FrameConfig(padding=10))
+        cols = ColFramer(self, col_ratios=(4, 7, 1), padpc=0.05, config=FrameConfig(padding=10))
         image = RowFramer(cols, row_ratios=(4, 1), config=FrameConfig(outline=None))
         image += MetaImages(image, key=MetadataKey.ALBUM, visuals=ImageStyle(reflection=True), config=FrameConfig(padding=0, background=BackgroundStyle(colour='background', colour_opacity=1.0), outline=OutlineStyle(width=0, softness=1.8, glow_intensity=0.2, glow_colour='foreground')))
         image += Frame(image)
         rows = RowFramer(cols, row_ratios=(3, 1), padpc=0.05, config=FrameConfig(padding=5))
         rows += MetaDataFrame(rows)
-        rows += SpectrumFrame(rows, channel='mono', visuals=SpectrumStyle(barsize_pc=4, bar_style=BarStyle(led_gap=0)))
+        # bar_style = BarStyle(led_gap=0, peak_h=2, radius=3, tip=True, flip=False, effects=effects_style)
+        #         spectrum_style = SpectrumStyle(barw_min=3, barsize_pc=1, barw_max=10, bar_style=bar_style)
+        rows += SpectrumFrame(rows, channel='mono', visuals=SpectrumStyle(barsize_pc=1, bar_style=BarStyle(led_gap=0)))
         cols += Frame(cols)
         self += VolumeSource(self)
 

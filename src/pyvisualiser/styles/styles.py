@@ -54,6 +54,12 @@ class StarfieldStyle:
     density: float = 50.0
     speed: float = 0.5
 
+@dataclass(frozen=True)
+class StardriveStyle:
+    density: float = 100.0        # Number of stars
+    speed: float = 1.0            # Baseline drift speed
+    warp_sensitivity: float = 0.5 # How much bass/vu affects warp speed
+    comet_length: float = 0.5  # <--- NEW: Controls the streak/tail length
 
 @dataclass(frozen=True)
 class CloudStyle:
@@ -87,7 +93,8 @@ class BackgroundStyle:
     ambient_glow: Union[AmbientGlowStyle, bool] = False
     reactive_glow: Union[ReactiveGlowStyle, bool] = False
     peak_accent: Union[PeakAccentStyle, bool] = False
-    starfield: Union[StarfieldStyle, bool] = False
+    starfield: Optional[StarfieldStyle] = None
+    stardrive: Optional[StardriveStyle] = None
     cloud: Union[CloudStyle, bool] = False
     edge_light: Union[EdgeLightStyle, bool] = False
     shader: Union[str, bool] = False
@@ -181,7 +188,7 @@ class BarStyle:
 
 @dataclass(frozen=True)
 class SpectrumStyle:
-    barsize_pc: float = 0.5
+    barsize_pc: float = 1
     barw_min: int = 2
     barw_max: int = 50
     flip: bool = False

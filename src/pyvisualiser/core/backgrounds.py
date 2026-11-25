@@ -97,6 +97,7 @@ class BackgroundLighting:
             if hasattr(audio_processor, 'get_analysis'):
                 self.audio_analysis = audio_processor.get_analysis() or {}
 
+
 class BackgroundImage:
     """Manages static background textures and dynamic live artwork (album/artist) as GPU textures."""
     def __init__(self, parent, style: BackgroundStyle, context: RenderContext):
@@ -104,27 +105,35 @@ class BackgroundImage:
         self.context = context
         self.parent = parent
         self.texture: moderngl.Texture | None = None
+        self.image_container: Image | None = None
         self._last_art_ref = None
+        self._has_updated_dynamic = False
+
+        # Reuse one Image instance so its internal Cache persists across frames
+        default_img = getattr(self.style, 'default_texture', 'blank_art.png') or 'blank_art.png'
+        self.image_container = Image(self.parent, default_image=default_img)
 
         self._load_texture()
 
+    def _upload_surface(self, surface: pygame.Surface):
+        # Flip Y for OpenGL bottom-left texture origin
+        surface = pygame.transform.flip(surface, False, True)
+        rgba_data = pygame.image.tostring(surface, "RGBA", False)
+        if self.texture is not None:
+            self.texture.release()
+        self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
+        self.texture.build_mipmaps()
+        self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+
     def _load_texture(self):
         ref = self.style.texture_path
-        if not ref:
-            return
-
-        if ref in ('album', 'artist'):
-            # Will be updated dynamically in update()
+        if not ref or ref in ('album', 'artist'):
             return
 
         try:
             path = get_asset_path('backgrounds', ref)
             surface = pygame.image.load(path).convert_alpha()
-            surface = pygame.transform.flip(surface, False, True)
-            rgba_data = pygame.image.tostring(surface, "RGBA", False)
-            self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
-            self.texture.build_mipmaps()
-            self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+            self._upload_surface(surface)
         except Exception as e:
             print(f"BackgroundImage> Failed to load texture '{ref}': {e}")
 
@@ -135,29 +144,23 @@ class BackgroundImage:
             return
 
         art_ref = (
-            self.parent.platform.album_art if ref == 'album' 
-            else self.parent.platform.artist_art
+            getattr(self.parent.platform, 'album_art', None) if ref == 'album'
+            else getattr(self.parent.platform, 'artist_art', None)
         )
 
-        if art_ref == self._last_art_ref:
+        if self._has_updated_dynamic and art_ref == self._last_art_ref:
             return  # Unchanged, keep current texture
-            
-        self._last_art_ref = art_ref
-        
+
         try:
-            # Resolve image surface via Image utility
-            img_util = Image(self.parent, path=art_ref, target_wh=self.parent.abs_background()[-2:])
-            surface = img_util.scaleInProportion(art_ref)
+            target_wh = self.parent.abs_background()[-2:]
+            self.image_container.target_wh = target_wh
+            surface = self.image_container.scaleInProportion(art_ref, target_wh=target_wh)
             if surface is None:
                 return
-            surface = pygame.transform.flip(surface, False, True)
-            rgba_data = pygame.image.tostring(surface, "RGBA", False)
-            if self.texture is not None:
-                self.texture.release()
-                
-            self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
-            self.texture.build_mipmaps()
-            self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+
+            self._upload_surface(surface)
+            self._last_art_ref = art_ref
+            self._has_updated_dynamic = True
         except Exception as e:
             print(f"BackgroundImage> Failed to load dynamic art '{art_ref}': {e}")
 
@@ -167,8 +170,115 @@ class BackgroundImage:
                 self.texture.release()
             except Exception:
                 pass
-            self.texture = None            
+            self.texture = None
+# class BackgroundImage:
+#     """Manages static background textures and dynamic live artwork (album/artist) as GPU textures."""
+#     def __init__(self, parent, style: BackgroundStyle, context: RenderContext):
+#         self.style = style
+#         self.context = context
+#         self.parent = parent
+#         self.texture: moderngl.Texture | None = None
+#         self.image_container: Image | None = None
+#         self._last_art_ref = None
 
+#         self._load_texture()
+
+#     def _load_texture(self):
+#         ref = self.style.texture_path
+#         if not ref or ref in ('album', 'artist'):
+#             return
+
+#         try:
+#             path = get_asset_path('backgrounds', ref)
+#             surface = pygame.image.load(path).convert_alpha()
+#             # Flip Y for OpenGL bottom-left texture origin
+#             surface = pygame.transform.flip(surface, False, True)
+#             rgba_data = pygame.image.tostring(surface, "RGBA", False)
+#             self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
+#             self.texture.build_mipmaps()
+#             self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+#         except Exception as e:
+#             print(f"BackgroundImage> Failed to load texture '{ref}': {e}")
+    
+#     def update_dynamic_art(self):
+#         ref = self.style.texture_path
+#         if ref not in ('album', 'artist'):
+#             return
+
+#         art_ref = (
+#             getattr(self.parent.platform, 'album_art', None) if ref == 'album'
+#             else getattr(self.parent.platform, 'artist_art', None)
+#         )
+
+#         # print("art_ref", art_ref)
+#         # Track the resolved source (art_ref or sentinel for fallback) so None on startup still runs
+#         resolved_key = art_ref if art_ref else '__default__'
+#         if resolved_key == self._last_art_ref:
+#             return
+
+#         try:
+#             img_util = Image(self.parent, path=art_ref, target_wh=self.parent.abs_background()[-2:])
+#             surface = img_util.scaleInProportion(art_ref) if art_ref else None
+#             if surface is None and getattr(img_util, 'default_image', None):
+#                 surface = img_util.scaleInProportion(img_util.default_image)
+#             if surface is None:
+#                 return
+
+#             surface = pygame.transform.flip(surface, False, True)
+#             rgba_data = pygame.image.tostring(surface, "RGBA", False)
+
+#             if self.texture is not None:
+#                 self.texture.release()
+
+#             self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
+#             self.texture.build_mipmaps()
+#             self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+#             self._last_art_ref = resolved_key
+#         except Exception as e:
+#             print(f"BackgroundImage> Failed to load dynamic art '{art_ref}': {e}")[cite: 1, 5]
+
+    # def update_dynamic_art(self):
+    #     """Polls platform for live album/artist art and updates the GPU texture if changed."""
+    #     ref = self.style.texture_path
+    #     if ref not in ('album', 'artist'):
+    #         return
+
+    #     art_ref = (
+    #         self.parent.platform.album_art if ref == 'album' 
+    #         else self.parent.platform.artist_art
+    #     )
+
+    #     if art_ref == self._last_art_ref:
+    #         return  # Unchanged, keep current texture
+            
+    #     self._last_art_ref = art_ref
+        
+    #     try:
+    #         img_util = Image(self.parent, path=art_ref, target_wh=self.parent.abs_background()[-2:])
+    #         surface = img_util.scaleInProportion(art_ref)
+    #         if surface is None:
+    #             return
+
+    #         # Flip Y for OpenGL bottom-left texture origin
+    #         surface = pygame.transform.flip(surface, False, True)
+
+    #         rgba_data = pygame.image.tostring(surface, "RGBA", False)
+    #         if self.texture is not None:
+    #             self.texture.release()
+                
+    #         self.texture = self.context.ctx.texture(surface.get_size(), 4, rgba_data)
+    #         self.texture.build_mipmaps()
+    #         self.texture.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+    #     except Exception as e:
+    #         print(f"BackgroundImage> Failed to load dynamic art '{art_ref}': {e}")
+
+    def __del__(self):
+        if hasattr(self, 'texture') and self.texture is not None:
+            try:
+                self.texture.release()
+            except Exception:
+                pass
+            self.texture = None
 
 class BackgroundRenderPass(RenderPass):
     """
@@ -236,6 +346,12 @@ class BackgroundRenderPass(RenderPass):
         uniform float u_starfield_density;
         uniform float u_starfield_speed;
 
+        
+        // Stardrive
+        uniform float u_stardrive_density;
+        uniform float u_stardrive_speed;
+        uniform float u_comet_length;
+
         // Cloud
         uniform float u_cloud_opacity;
 
@@ -284,6 +400,11 @@ class BackgroundRenderPass(RenderPass):
         // --- INJECTED PATTERN CODE START ---
         %s
         // --- INJECTED PATTERN CODE END ---
+
+        // Helper for star positioning
+        float hashstar(vec2 p) {
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        }
 
         void main() {
             vec4 colour = vec4(u_colour, u_colour_opacity);
@@ -362,6 +483,40 @@ class BackgroundRenderPass(RenderPass):
                 }
             }
 
+            // StarDrive
+            if (u_stardrive_density > 0.0) {
+                float warp = u_bass * 10.0 * 0.25;
+                float t = iTime * (u_stardrive_speed * 0.02 + warp);
+
+                for (float layer = 0.0; layer < 4.0; layer += 1.0) {
+                    float depth = fract(layer * 0.25 + t);
+                    float scale = mix(28.0, 8.0, depth);
+
+                    vec2 centered = v_uv - vec2(0.5);
+                    centered.x *= u_aspect_ratio;
+
+                    float r = max(length(centered), 0.001);
+                    vec2 radial_dir = centered / r;
+
+                    // Polar-like grid cells so streaks align outward from center
+                    float angle = atan(centered.y, centered.x);
+                    vec2 cell_uv = vec2(angle * scale, r * scale * 0.35 - depth * 12.0);
+                    vec2 cell_id = floor(cell_uv);
+                    vec2 cell_f = fract(cell_uv) - 0.5;
+
+                    float rnd = hashstar(cell_id);
+                    float density_thresh = clamp(1.0 - (u_stardrive_density * 0.0015), 0.70, 0.995);
+                    if (rnd > density_thresh) {
+                        float streak_len = mix(0.02, 0.25, clamp(u_comet_length, 0.0, 2.0)) * (0.3 + depth);
+                        // Thin streak along cell angle, elongated radially
+                        float angular_dist = abs(cell_f.x);
+                        float radial_streak = smoothstep(streak_len * 2.0, 0.0, abs(cell_f.y)) * smoothstep(0.18, 0.01, angular_dist);
+                        float fade = smoothstep(0.0, 0.15, depth) * (1.0 - smoothstep(0.85, 1.0, depth));
+                        colour.rgb += vec3(0.85, 0.93, 1.0) * radial_streak * fade * (0.4 + 0.6 * rnd);
+                    }
+                }
+            }
+            
             // 9. Procedural Vapor Clouds
             if (u_cloud_opacity > 0.0) {
                 vec2 center = v_uv - 0.5;
@@ -624,15 +779,25 @@ vec4 run_pattern(vec2 screenSize, vec2 screen_coords) {{
         else:
             self.prog['u_peak_intensity'].value = 0.0
 
-        # Starfield
+        # 8. Starfield (Drifting layer)
         sf = self.style.starfield
-        if sf:
-            if not isinstance(sf, StarfieldStyle):
-                sf = StarfieldStyle()
+        if isinstance(sf, StarfieldStyle):
             self.prog['u_starfield_density'].value = float(sf.density)
             self.prog['u_starfield_speed'].value = float(sf.speed)
         else:
             self.prog['u_starfield_density'].value = 0.0
+
+        # 9. Stardrive (Hyperdrive Warp)
+        sd = self.style.stardrive
+        if isinstance(sd, StardriveStyle):
+            self.prog['u_stardrive_density'].value = float(sd.density)
+            self.prog['u_stardrive_speed'].value = float(sd.speed)
+            self.prog['u_comet_length'].value = float(sd.comet_length)
+            # Link audio energy to warp intensity
+            # self.prog['u_vu'].value = float(self.lighting.audio_vu)
+            # self.prog['u_bass'].value = float(self.lighting.bass)
+        else:
+            self.prog['u_stardrive_density'].value = 0.0
 
         # Cloud
         cloud = self.style.cloud
@@ -682,6 +847,24 @@ class BackgroundBase:
         self.render_pass = BackgroundRenderPass(self.engine.render_context, style, self.image, self.lighting)
         self.render_pass.colour_resolver = self._resolve_colour
 
+        # Detect if this is a simple card background (solid/translucent panel with optional drop shadow)
+        # vs. a full-screen or procedural GPU shader pass (cloud, starfield, raymarching shader)
+
+        has_shader_effect = bool(
+            style.shader
+            or style.texture_path
+            or style.vignette
+            or style.noise
+            or style.ambient_glow
+            or style.reactive_glow
+            or style.peak_accent
+            or style.starfield
+            or style.stardrive
+            or style.cloud
+            or style.edge_light
+        )
+        self.is_simple_card = not has_shader_effect
+
     def _resolve_colour(self, colour_name):
         if not colour_name:
             return (0.0, 0.0, 0.0)
@@ -696,30 +879,101 @@ class BackgroundBase:
     def draw(self, audio=None, media=None):
         self.update()
 
-        # If a shadow is specified in BackgroundStyle, draw the drop shadow rect via renderer first
-        if self.style.shadow is not None:
-            sh = self.style.shadow
+        # 1. Simple Card Panel (Draws via GeometryPass to get exact SDF corner radius and drop shadows)
+        if self.is_simple_card and hasattr(self.engine, 'geometry_pass'):
             rect_coords = self.frame.abs_background()
-            offset_x, offset_y = sh.offset
-            shadow_coords = (rect_coords[0] + offset_x, rect_coords[1] + offset_y, rect_coords[2], rect_coords[3])
-            
-            # Resolve shadow colour
-            col = sh.colour
-            if isinstance(col, str):
-                resolved_col = self.frame.colours.get(col)
-            else:
-                resolved_col = col
-            
-            shadow_rgba = list(resolved_col[:3]) + [sh.opacity]
-            
-            # Render shadow rectangle via GeometryPass with softness
+
+            radius = 0
+            if hasattr(self.frame, 'outline_frame') and self.frame.outline_frame:
+                radius = getattr(self.frame.outline_frame.style, 'radius', 0) or 0
+
+            # 1. Render Drop Shadow / Glow FIRST (Underneath the card)
+            if self.style.shadow is not None:
+                sh = self.style.shadow
+                if isinstance(sh.colour, str):
+                    resolved_shadow_color = self.frame.colours.get(sh.colour)[:3]
+                else:
+                    resolved_shadow_color = sh.colour[:3]
+
+                raw_opacity = sh.opacity
+                if isinstance(raw_opacity, float) and raw_opacity <= 1.0:
+                    resolved_opacity = int(raw_opacity * 255)
+                else:
+                    resolved_opacity = int(raw_opacity)
+
+                offset_x, offset_y = sh.offset
+                
+                # Check if this is an additive glow (centered, non-black) vs a directional drop shadow (black/offset)
+                is_centered_glow = (offset_x == 0 and offset_y == 0 and max(resolved_shadow_color) > 50)
+                
+                if is_centered_glow:
+                    # Centered glow: expand bounds outward so it radiates around the card
+                    glow_expand = max(4.0, sh.softness * 12.0)
+                    glow_coords = (
+                        rect_coords[0] - glow_expand,
+                        rect_coords[1] - glow_expand,
+                        rect_coords[2] + glow_expand * 2.0,
+                        rect_coords[3] + glow_expand * 2.0
+                    )
+                    # Keep glow tight and controlled
+                    glow_rgba = [int(c * 0.7) for c in resolved_shadow_color] + [int(resolved_opacity * 0.5)]
+                    self.engine.geometry_pass.draw_rect(
+                        glow_rgba,
+                        glow_coords,
+                        border_radius=radius + glow_expand * 0.5,
+                        softness=sh.softness,
+                        additive=True
+                    )
+                else:
+                    # Directional drop shadow: shift by offset
+                    shadow_coords = (
+                        rect_coords[0] + offset_x,
+                        rect_coords[1] + offset_y,
+                        rect_coords[2],
+                        rect_coords[3]
+                    )
+                    shadow_rgba = list(resolved_shadow_color) + [resolved_opacity]
+                    self.engine.geometry_pass.draw_rect(
+                        shadow_rgba,
+                        shadow_coords,
+                        border_radius=radius,
+                        softness=max(0.01, sh.softness)
+                    )
+
+            # 2. Render Card Background Surface (Over the shadow)
+            col = self.frame.colours.get(self.style.colour)
+            alpha = int(self.style.colour_opacity * 255)
+            bg_rgba = list(col[:3]) + [alpha]
+
             self.engine.geometry_pass.draw_rect(
-                shadow_rgba, 
-                shadow_coords, 
-                border_radius=getattr(self.style, 'radius', 0), 
-                softness=sh.softness
+                bg_rgba,
+                rect_coords,
+                border_radius=radius
             )
-            
+            return
+
+        # 2. Texture, Artwork, or Procedural Shader Pass (Handles full-screen & sub-frame viewports)
+        if hasattr(self.engine, 'compositor'):
+            x, y, w, h = self.frame.abs_background()
+            screen_w = self.frame.platform.W
+            screen_h = self.frame.platform.H
+            dpi_scale = getattr(self.engine.render_context, 'dpi_scale', 1.0)
+
+            is_fullscreen = (x <= 0 and y <= 0 and w >= screen_w and h >= screen_h)
+
+            if is_fullscreen:
+                self.render_pass.viewport = None
+            else:
+                gl_y = screen_h - (y + h)
+                phys_x = int(round(x * dpi_scale))
+                phys_y = int(round(gl_y * dpi_scale))
+                phys_w = int(round(w * dpi_scale))
+                phys_h = int(round(h * dpi_scale))
+                self.render_pass.viewport = (phys_x, phys_y, phys_w, phys_h)
+
+            self.engine.compositor.add_pre_pass(self.render_pass)
+
+        # 3. Full-screen or complex procedural GPU shader pass (registered as Compositor pre-pass)
         if hasattr(self.engine, 'compositor'):
             x, y, w, h = self.frame.abs_background()
             screen_w = self.frame.platform.W

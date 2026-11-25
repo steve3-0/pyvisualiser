@@ -231,5 +231,5 @@ class F8(Frame):
         cols += SpectrumFrame(parent=cols, channel=Channel.MONO, visuals=spec_style, config=FrameConfig(background=BackgroundStyle(colour='background')))
         
         artoutline = OutlineStyle(colour='background', width=5)
-        cols += MetaImages(parent=cols, key=MetadataKey.ARTIST, visuals=ImageStyle(opacity=100), config=FrameConfig(outline=artoutline))
+        cols += MetaImages(parent=cols, key=MetadataKey.ARTIST, visuals=ImageStyle(opacity=0.6), config=FrameConfig(outline=artoutline))
         cols += MetaDataFrame(parent=cols)

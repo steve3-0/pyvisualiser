@@ -403,8 +403,8 @@ class Image:
         self.reflection  = reflection
         self.default_path= default_image
 
-        if path is not None:
-            self.scaleInProportion(path)
+        # if path is not None:
+        self.scaleInProportion(path)
 
     def download_image(self, url):
         try:
@@ -441,8 +441,10 @@ class Image:
 
             # Use a stable cache key even if image_ref is None or empty
             cache_key = image_ref if image_ref else "_BLANK_ART_SENTINEL"
+
             
             cached_image = self.image_cache.find(cache_key)
+            # print(cached_image)
             if cached_image is not None:
                 return cached_image
 
@@ -460,10 +462,12 @@ class Image:
                     path = resolved_ref
 
                 imagesurface = pygame.image.load(path).convert_alpha()
+                # print("loaded", cache_key, path, imagesurface)
                 
             except Exception as e:
                 fallback = self._get_fallback_surface(target_wh)
                 self.image_cache.add(cache_key, fallback)
+                print("scaleInProportion ERROR: failed to load image from", resolved_ref, e)
                 return fallback
 
             if imagesurface is None:

@@ -285,7 +285,7 @@ class MetaImages(ArtFrame):
 
         self.image_style = visuals if visuals is not None else ImageStyle()
         resolved_config = config if config is not None else FrameConfig(square=is_square)
-        # resolved_config = resolved_config.change(square=is_square)
+        resolved_config = resolved_config.change(square=is_square)
 
         ArtFrame.__init__(
             self,

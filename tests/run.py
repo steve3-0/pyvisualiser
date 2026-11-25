@@ -119,7 +119,8 @@ from suite.test_back import (
     BackgroundEffectsScreen1,
     BackgroundEffectsScreen2,
     ShadowTestScreen,
-    BackgroundEffectsScreen3
+    BackgroundEffectsScreen3,
+    BackgroundStarsScreen
 
 )
 from suite.test_geo import (
@@ -245,7 +246,8 @@ BACKGROUND_SCREENS = (
     BloomImageTestScreen,
     F9,
     ShadowTestScreen,
-    BackgroundEffectsScreen3
+    BackgroundEffectsScreen3,
+    BackgroundStarsScreen
 
 )
 

@@ -69,6 +69,7 @@ class VerticalAlign(StrEnum):
     BOTTOM = "bottom"
     ROW = "row"
 
+CENTERED = (HorizontalAlign.CENTRE, VerticalAlign.MIDDLE)
 
 class ThemeColour(StrEnum):
     """Standard semantic theme colour keys."""
