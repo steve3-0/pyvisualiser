@@ -95,7 +95,7 @@ class MonoSpectrumScreen(Frame):
 
     def __init__(self, platform):
         Frame.__init__(self, platform)
-        self += SpectrumFrame(self, 'left', visuals=SpectrumStyle(barw_min=2, bar_style=BarStyle(led_gap=0, tip=True, colour_mode='horz')))
+        self += SpectrumFrame(self, 'left', visuals=SpectrumStyle(colour_mode='horz',flip=True,barw_min=2, bar_style=BarStyle(led_gap=0, tip=True)))
 
 class MonoSpectrumLEDScreen(Frame):
     """ Volume/Source on left - Stereo Spectrum overlaid """

@@ -12,10 +12,12 @@ class VUScreen(Frame):
 
     def __init__(self, platform):
         Frame.__init__(self, platform)
-        vubar_style=VUBarStyle(barsize_pc=0.2,  bar_style= BarStyle(effects=BarEffects(threshold=0.6, scale=3.0, blur=0.9)))
-        self += VUFrame(self, config=FrameConfig(align=('centre','middle')),
+        cols=ColFramer(self,padpc=0.1)
+        vubar_style=VUBarStyle(barsize_pc=0.2,  bar_style= BarStyle(colour_mode='vert', effects=BarEffects(threshold=0.6, scale=3.0, blur=0.9)))
+        cols += VUFrame(cols, 'left', config=FrameConfig(align=('centre','middle')),
                         visuals=vubar_style)
-
+        cols += VUFrame(cols, 'right', config=FrameConfig(align=('centre','middle')),
+                        visuals=None)
 
 class VU2Screen(Frame):
 

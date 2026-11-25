@@ -175,19 +175,22 @@ class SpectrumFrame(Frame, Spectrum):
         self.read(self.channel, audio_snapshot=audio)
 
         is_flipped = getattr(self.spectrum_style, 'flip', False)
-        col_mode = getattr(self.bar_style, 'colour_mode', 'horz')
+        col_mode = getattr(self.spectrum_style, 'colour_mode', 'vert')
         right_offset = getattr(self.bar_style, 'right_offset', 0)
 
         if is_flipped:
+            n = len(self.current)
             for i, item in enumerate(reversed(self.current)):
                 x = i * (self.barw + self.bar_gap)
-                colour_index = x if col_mode == 'horz' else None
-                peak_val = self.peaks[len(self.current) - 1 - i]
+                orig_idx = n - 1 - i
+                orig_x = orig_idx * (self.barw + self.bar_gap)
+                colour_index = orig_x if col_mode == 'horz' else None
+                peak_val = self.peaks[orig_idx]
                 self.bar.draw(x + right_offset, item.smoothed(), self.barw, peak_val, colour_index=colour_index)
         else:
             for i in range(len(self.current)):
                 x = i * (self.barw + self.bar_gap)
-                colour_index = x if col_mode == 'horz' else None
+                colour_index = 1000-x if col_mode == 'horz' else None
                 self.bar.draw(x + right_offset, self.current[i].smoothed(), self.barw, self.peaks[i], colour_index=colour_index)
         return True
     

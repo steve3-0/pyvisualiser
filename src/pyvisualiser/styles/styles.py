@@ -178,6 +178,7 @@ class BarStyle:
     segment_size: Optional[int] = None
     segment_gap: Optional[int] = None
     corner_radius: Optional[int] = None
+    brightness: float = 0.2
 
     def __post_init__(self):
         if self.segment_size is None: object.__setattr__(self, 'segment_size', self.led_h)
@@ -194,6 +195,7 @@ class SpectrumStyle:
     flip: bool = False
     bar_style: BarStyle = field(default_factory=BarStyle)
     ballistics: FFTBallistics = field(default_factory=FFTBallistics)
+    colour_mode: Optional[str] = 'vert'
 
 @dataclass(frozen=True)
 class PlayProgressStyle:

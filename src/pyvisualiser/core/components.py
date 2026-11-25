@@ -81,6 +81,7 @@ class Bar(Frame):
         
         colour_range = self.h if self.bar_style.colour_mode == 'vert' else self.w
         self.colours = Colour(self.theme, colour_range)
+        self.brightness = getattr(self.bar_style, 'brightness', getattr(self.bar_style, 'brightness', 1.0))
         
         self.gradient_surface = self._create_gradient_surface()
         self._gl_texture = None
@@ -111,10 +112,36 @@ class Bar(Frame):
         
         return (x, y, w_target, h_target)
 
-    def draw_peak(self, peak_h, flip, peak_coords):
-        if peak_h > 0.0:
-            colour = self.colours.get(colour_index=peak_h, flip=flip)
-            self.platform.renderer.draw_rect(colour, peak_coords, softness=self.bar_style.edge_softness)
+    # helper to dim & brighten bars eg when in monochrome
+
+    def _scale_brightness(self, colour, factor: float, ypc: float = 1.0):
+        if colour is None:
+            return None, None
+
+        if factor == 1.0 and ypc >= 1.0:
+            return colour, colour
+
+        def _apply_scale(col, mult: float):
+            if mult >= 1.0:
+                return tuple(col)
+            rgb = [max(0, min(255, int(c * mult))) for c in col[:3]]
+            if len(col) > 3:
+                return tuple(rgb) + (col[3],)
+            return tuple(rgb)
+
+        ypc_clamped = max(0.0, min(1.0, float(ypc)))
+        loudness_lift = 0.5 + 0.5 * (ypc_clamped ** 0.5)   # ranges 0.5 .. 1.0
+        bot_mult = max(0.0, min(1.0, factor * loudness_lift))
+
+        c_top = _apply_scale(colour, 1.0)
+        c_bot = _apply_scale(colour, 1.0)
+        return c_top, c_bot
+
+    def draw_peak(self, peak_h, flip, peak_coords, colour_index=None):
+            if peak_h > 0.0:
+                idx = colour_index if colour_index is not None else peak_h
+                colour = self.colours.get(colour_index=idx, flip=flip)
+                self.platform.renderer.draw_rect(colour, peak_coords, softness=self.bar_style.edge_softness)
 
     def _get_smoothed_bloom(self, key, target):
         current = self.bloom_states.get(key, 0.0)
@@ -143,7 +170,9 @@ class Bar(Frame):
             c_bot = self.colours.get(self.colours.num_colours, False)
             
             if colour_index is not None:
-                c_top = c_bot = self.colours.get(colour_index)
+                c_bot, c_top = self._scale_brightness(self.colours.get(colour_index), self.brightness, ypc)
+                # c_bot = self.colours.get(colour_index)
+                # c_top = c_bot = self.colours.get(colour_index)
 
             bloom_start = self.effects.threshold - 0.05
             alpha_ratio = 0.0
@@ -175,18 +204,25 @@ class Bar(Frame):
                 c_outer_thresh = c_thresh[:3] + [current_alpha * 0.6]
                 self.platform.renderer.draw_rect(c_outer_thresh, b_rect_outer, softness=self.effects.blur * self.effects.outer_glow_blur_mult, gradient=(c_outer_thresh, c_outer_tip), axis=1.0, level=10.0, additive=True)
 
-            self.platform.renderer.draw_rect(c_top, coords, 
-                                             border_radius=self.bar_style.corner_radius, 
-                                             softness=self.bar_style.edge_softness,
-                                             segments=(self.bar_style.segment_size, self.bar_style.segment_gap),
-                                             gradient=(c_top, c_bot),
-                                             axis=1,
-                                             level=ypc,
-                                             gradient_image=self.gradient_surface,
-                                             texture_holder=self)
+            grad_img = None if colour_index is not None else self.gradient_surface
+
+            self.platform.renderer.draw_rect(
+                c_top,
+                coords,
+                border_radius=self.bar_style.corner_radius,
+                softness=self.bar_style.edge_softness,
+                segments=(self.bar_style.segment_size, self.bar_style.segment_gap),
+                gradient=(c_top, c_bot),
+                axis=1,
+                level=ypc,
+                gradient_image=grad_img,
+                texture_holder=self,
+            )
 
             pcoords = self.float_abs_rect(offset=(offset, peak * self.abs_h), wh=[w, self.bar_style.peak_h])
-            self.draw_peak(peak * self.h, False, pcoords)
+            # self.draw_peak(peak * self.h, False, pcoords)
+            self.draw_peak(peak * self.h, False, pcoords, colour_index=colour_index)  # or peak_w in drawH
+
         else:
             coords = self.float_abs_rect(offset=(offset, 0), wh=[w, self.abs_h])
             
@@ -194,7 +230,10 @@ class Bar(Frame):
             c_bot = self.colours.get(0, False)
             
             if colour_index is not None:
-                c_top = c_bot = self.colours.get(colour_index)
+                # c_bot = self._scale_brightness(self.colours.get(colour_index), self.brightness)
+                # c_top = self.colours.get(colour_index)
+                # c_top = c_bot = self.colours.get(colour_index)
+                c_top, c_bot = self._scale_brightness(self.colours.get(colour_index), self.brightness, ypc)
 
             bloom_start = self.effects.threshold - 0.05
             alpha_ratio = 0.0
@@ -227,15 +266,20 @@ class Bar(Frame):
                 
                 self.platform.renderer.draw_rect(c_outer_tip, b_rect_outer, softness=self.effects.blur * 2.5, gradient=(c_outer_tip, c_outer_thresh), axis=1.0, level=10.0, additive=True)
 
-            self.platform.renderer.draw_rect(c_top, coords, 
-                                             border_radius=self.bar_style.corner_radius, 
-                                             softness=self.bar_style.edge_softness,
-                                             segments=(self.bar_style.segment_size, self.bar_style.segment_gap),
-                                             gradient=(c_top, c_bot),
-                                             axis=-1.0,
-                                             level=ypc,
-                                             gradient_image=self.gradient_surface,
-                                             texture_holder=self)
+            grad_img = None if colour_index is not None else self.gradient_surface
+
+            self.platform.renderer.draw_rect(
+                c_top,
+                coords,
+                border_radius=self.bar_style.corner_radius,
+                softness=self.bar_style.edge_softness,
+                segments=(self.bar_style.segment_size, self.bar_style.segment_gap),
+                gradient=(c_top, c_bot),
+                axis=-1.0,
+                level=ypc,
+                gradient_image=grad_img,
+                texture_holder=self,
+            )
 
             if self.effects.reflection:
                 ref_size = 0.3
@@ -270,7 +314,8 @@ class Bar(Frame):
                     self.platform.renderer.draw_rect(c_peak_ref, pcoords_ref, softness=self.bar_style.edge_softness)
 
             pcoords = self.float_abs_rect(offset=(offset, self.abs_h * (1 - peak)), wh=[w, self.bar_style.peak_h])
-            self.draw_peak(peak * self.h, False, pcoords)
+            # self.draw_peak(peak * self.h, False, pcoords)
+            self.draw_peak(peak * self.h, False, pcoords, colour_index=colour_index)  # or peak_w in drawH
 
     def drawH(self, offset, ypc, w, peak=0, colour_index=None):
         """ Draw a horizontal bar """
