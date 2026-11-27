@@ -29,8 +29,9 @@ class VolumeSource(Frame):
 
     def __init__(self, platform, **kwargs):
         Frame.__init__(self, platform, **kwargs)
-        rows = RowFramer(self, row_ratios=(1, 1, 1), padpc=0.05, config=FrameConfig(padding=10, align=('right', 'bottom'), scalers=(0.1, 1.0)))
-        rows += CircularProgress(rows, colour='mid')
+        config=FrameConfig(padding=10, align=('right', 'bottom'), scalers=(0.25, 1.0))
+        rows = RowFramer(self, row_ratios=(1, 1, 1), padpc=0.05, config=config)
+        rows += PlayProgressFrame(rows, visuals=PlayProgressStyle(colour='mid', format='auto'))
         rows += MetaData(rows, key=MetadataKey.SOURCE, visuals=TextStyle(colour='mid'))
         rows += MetaData(rows, key=MetadataKey.VOLUME, visuals=TextStyle(colour='foreground'))
 

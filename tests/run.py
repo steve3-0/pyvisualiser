@@ -23,6 +23,7 @@ from pyvisualiser.visualisers.vumeters import *
 from pyvisualiser.visualisers.metadata import *
 from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.visualisers.oscillogramme import *
+from pyvisualiser.visualisers.playprogress import *
 
 # --- Suite Imports (Standard Absolute Imports) ---
 from suite.test_desktop_profile import (
@@ -109,7 +110,7 @@ from suite.test_art import (
 from suite.test_meta import (
     ArtistMetaDataFrame,
     MetaMiniSpectrumFrame,
-    ProgressScreen,
+    ProgressScreenTest,
     CircProgressScreen
 )
 from suite.test_back import (
@@ -227,9 +228,9 @@ ART_SCREENS = (
 META_TEST_SCREENS = (
     ArtistMetaDataFrame,
     MetaMiniSpectrumFrame,
-    ProgressScreen,
-    CircProgressScreen
-)
+    ProgressScreenTest,
+    CircProgressScreen,
+    )
 
 GEO_TEST_SCREENS = (
     ColAlignedScreen,

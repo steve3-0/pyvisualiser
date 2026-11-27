@@ -16,14 +16,17 @@
 
 from collections.abc import Callable
 from typing import Optional, Union, Tuple, Dict, Any
+from dataclasses import replace
 
 from    pyvisualiser.core.framecore  import Frame, RowFramer, ColFramer, get_asset_path, Smoother
 from    pyvisualiser.core.components import Line, Box, Image, Text
-from    pyvisualiser.visualisers.glvisualisers import ShaderFrame
+from    pyvisualiser.visualisers.text import TextFrame
+from    pyvisualiser.visualisers.playprogress import PlayProgressFrame
 from    pyvisualiser.core.frame_config import FrameConfig, Centred, FullScale, PI   
 from    pyvisualiser.styles.styles import TextStyle, PlayProgressStyle, ImageStyle, BarStyle, ShaderStyle
 from    pyvisualiser.styles.profiles import ProfileManager
 from    pyvisualiser.core.base_defs  import *
+from    pyvisualiser.core.state import MediaSnapshot
 
 
 """ Text based frames for displaying metadata such as track title, album, artist, and play progress."""
@@ -78,7 +81,10 @@ class MetaData(TextFrame):
         visuals: Optional[TextStyle] = None
     ):
         self.metadata_key = str(key).lower()
-        style = visuals if visuals is not None else TextStyle(justify='centre')
+        align = config.align if config is not None else Centred
+        colour= visuals.colour if visuals is not None else 'mid'
+        style = visuals if visuals is not None else TextStyle()
+        style = TextStyle(justify=align, colour=colour)
 
         def _resolver(media=None):
             if media is not None:
@@ -112,7 +118,7 @@ class MetaDataFrame(Frame):
 
     def configure(self):
         # Build 4-row stack: Track, Album, Artist, Progress Bar
-        rows = RowFramer(self, row_ratios=(1.5, 1, 1, 0.5), padpc=0.3, config=FrameConfig(padding=0.0))
+        rows = RowFramer(self, row_ratios=(1.5, 1, 1, 1), padpc=0.3, config=FrameConfig(padding=0.0))
         rows += MetaData(rows, MetadataKey.TRACK,  visuals=TextStyle(colour='foreground', justify=self.justify))
         rows += MetaData(rows, MetadataKey.ALBUM,  visuals=TextStyle(colour='light', justify=self.justify))
         rows += MetaData(rows, MetadataKey.ARTIST, visuals=TextStyle(colour='light', justify=self.justify))
@@ -121,115 +127,174 @@ class MetaDataFrame(Frame):
 
 
 """ Play progress indicators frame for displaying elapsed and remaining time with a visual progress bar."""
-class PlayProgressFrame(Frame):
-    def __init__(
-        self,
-        parent,
-        config: Optional[FrameConfig] = None,
-        visuals: Optional[PlayProgressStyle] = None
-    ):
-        self.progress_style = visuals if visuals is not None else PlayProgressStyle()
-        self.bar_style = self.progress_style.bar_style
-        self.text_style = self.progress_style.text_style
+# class PlayProgressFrame(Frame):
+#     def __init__(
+#         self,
+#         parent,
+#         config: Optional[FrameConfig] = None,
+#         visuals: Optional[PlayProgressStyle] = None
+#     ):
+#         self.progress_style = visuals if visuals is not None else PlayProgressStyle()
+#         self.bar_style = self.progress_style.bar_style
+#         self.text_style = self.progress_style.text_style
 
-        resolved_config = config if config is not None else parent.config.change(z_order=10)
-        super().__init__(parent, config=resolved_config)
-        self.configure()
+#         resolved_config = config if config is not None else parent.config.change(z_order=10)
+#         super().__init__(parent, config=resolved_config)
+#         self.configure()
 
-    def configure(self):
-        self.barw = self.abs_w * self.progress_style.barsize_pc if self.bar_style.orient == 'vert' else self.abs_h * self.progress_style.barsize_pc
+#     def configure(self):
+#         self.barw = self.abs_w * self.progress_style.barsize_pc if self.bar_style.orient == 'vert' else self.abs_h * self.progress_style.barsize_pc
 
-        text_sample = " 22:22 "
-        self.elapsed = Text(self, fontmax=self.barw, text=text_sample, justify=('left', 'middle'), style=self.text_style, z_order=self.z_order + 1)
-        self.remaining = Text(self, fontmax=self.barw, text=text_sample, justify=('right', 'middle'), style=self.text_style, z_order=self.z_order + 1)
-        self.text_width = self.elapsed.fontwh[0] + self.remaining.fontwh[0]
+#         text_sample = " 22:22 "
+#         self.elapsed = Text(self, fontmax=self.barw, text=text_sample, justify=('left', 'middle'), style=self.text_style, z_order=self.z_order + 1)
+#         self.remaining = Text(self, fontmax=self.barw, text=text_sample, justify=('right', 'middle'), style=self.text_style, z_order=self.z_order + 1)
+#         self.text_width = self.elapsed.fontwh[0] + self.remaining.fontwh[0]
 
-        box = (self.barw, self.h) if self.bar_style.orient == 'vert' else (self.w - self.text_width, self.barw)
-        config = self.config.change(align=('centre', 'middle'))
-        self.boxbar = Box(self, config=config , box=box, radius=self.bar_style.radius)
+#         box = (self.barw, self.h) if self.bar_style.orient == 'vert' else (self.w - self.text_width, self.barw)
+#         config = self.config.change(align=('centre', 'middle'))
+#         self.boxbar = Box(self, config=config , box=box, radius=self.bar_style.radius)
 
-    def update_screen(self, audio=None, media=None):
-        if media is not None:
-            elapsed_str = f"  {media.format_elapsed()}"
-            remaining_str = f"{media.format_remaining()}  "
-            elapsed_pc = media.elapsed_pc
-        else:
-            dur = getattr(self.platform, 'duration', 0.0) or 0.0
-            elap = getattr(self.platform, 'elapsed', 0.0) or 0.0
-            elapsed_str = f"  {int(elap // 60)}:{int(elap % 60):02d}"
-            remaining_str = f"{int(max(0.0, dur - elap) // 60)}:{int(max(0.0, dur - elap) % 60):02d}  "
-            elapsed_pc = (elap / dur) if dur > 0 else 0.0
+#     def update_screen(self, audio=None, media=None):
+#         if media is not None:
+#             elapsed_str = f"  {media.format_elapsed()}"
+#             remaining_str = f"{media.format_remaining()}  "
+#             elapsed_pc = media.elapsed_pc
+#         else:
+#             dur = getattr(self.platform, 'duration', 0.0) or 0.0
+#             elap = getattr(self.platform, 'elapsed', 0.0) or 0.0
+#             elapsed_str = f"  {int(elap // 60)}:{int(elap % 60):02d}"
+#             remaining_str = f"{int(max(0.0, dur - elap) // 60)}:{int(max(0.0, dur - elap) % 60):02d}  "
+#             elapsed_pc = (elap / dur) if dur > 0 else 0.0
 
-        box = (self.barw, self.h) if self.bar_style.orient == 'vert' else (self.w - self.text_width, self.barw)
-        if self.boxbar.wh != box:
-            self.boxbar.resize(box)
+#         box = (self.barw, self.h) if self.bar_style.orient == 'vert' else (self.w - self.text_width, self.barw)
+#         if self.boxbar.wh != box:
+#             self.boxbar.resize(box)
 
-        hide_backline = -self.h / 2 if elapsed_pc * self.w > self.h / 2 else 0
-        self.boxbar.drawH(elapsed_pc, flip=True, colour_index='dark', offset=(hide_backline, 0))
-        self.boxbar.drawH(elapsed_pc, colour_index='light')
+#         hide_backline = -self.h / 2 if elapsed_pc * self.w > self.h / 2 else 0
+#         self.boxbar.drawH(elapsed_pc, flip=True, colour_index='dark', offset=(hide_backline, 0))
+#         self.boxbar.drawH(elapsed_pc, colour_index='light')
 
-        self.elapsed.draw(elapsed_str, colour=self.text_style.colour)
-        self.remaining.draw(remaining_str, colour=self.text_style.colour)
-        return True
-
-
-class CircularProgress(Frame):
-    """Circular progress dial with centered timecode readout."""
-    @property
-    def title(self):
-        return 'GLSL Shader Test - Circular Progress'
-
-    @property
-    def type(self):
-        return 'Test'
-
-    def __init__(
-        self,
-        parent,
-        config: Optional[FrameConfig] = None,
-        colour: str = 'mid',
-        visuals: Optional[TextStyle] = None
-    ):
-        resolved_config = config if config is not None else FrameConfig(
-            theme='hifi',
-            padding=0,
-            square=True
-        )
-        super().__init__(parent, config=resolved_config)
-        self.colour = colour
-        self.text_style = visuals if visuals is not None else TextStyle(
-            colour='mid',
-            justify=('centre', 'middle')
-        )
-        self.configure()
-
-    def configure(self):
-        start_text = self.update_text()
-        from pyvisualiser.visualisers.glvisualisers import ShaderFrame
-        self += ShaderFrame(
-            self,
-            shader='progressdial',
-            config=FrameConfig.default(),
-            visuals=ShaderStyle(shader_name='progressdial', colour=self.colour)
-        )
-        self += TextFrame(
-            self,
-            text=start_text,
-            config=FrameConfig(scalers=(0.7, 0.7), align=('centre', 'middle')),
-            visuals=self.text_style,
-            update_fn=self.update_text
-        )
-
-    def update_text(self, media=None):
-        if media is not None:
-            duration = media.duration
-        else:
-            duration = getattr(self.platform, 'duration', 0.0) or 0.0
-        minutes = int(duration // 60)
-        seconds = int(duration % 60)
-        return f"{minutes:d}:{seconds:02d}"
+#         self.elapsed.draw(elapsed_str, colour=self.text_style.colour)
+#         self.remaining.draw(remaining_str, colour=self.text_style.colour)
+#         return True
 
 
+# class CircularProgress(Frame):
+#     """Circular progress dial with centered timecode readout."""
+#     @property
+#     def title(self):
+#         return 'GLSL Shader Test - Circular Progress'
+
+#     @property
+#     def type(self):
+#         return 'Test'
+
+#     def __init__(
+#         self,
+#         parent,
+#         config: Optional[FrameConfig] = None,
+#         colour: str = 'mid',
+#         visuals: Optional[TextStyle] = None
+#     ):
+#         resolved_config = config if config is not None else FrameConfig(
+#             theme='hifi',
+#             padding=0,
+#             square=True
+#         )
+#         super().__init__(parent, config=resolved_config)
+#         self.colour = colour
+#         self.text_style = visuals if visuals is not None else TextStyle(
+#             colour='mid',
+#             justify=('centre', 'middle')
+#         )
+#         self.configure()
+
+#     def configure(self):
+#         start_text = self.update_text()
+
+#         self += ShaderFrame(
+#             self,
+#             shader='progressdial',
+#             config=FrameConfig.default(),
+#             visuals=ShaderStyle(shader_name='progressdial', colour=self.colour)
+#         )
+#         self += TextFrame(
+#             self,
+#             text=start_text,
+#             config=FrameConfig(scalers=(0.7, 0.7), align=('centre', 'middle')),
+#             visuals=self.text_style,
+#             update_fn=self.update_text
+#         )
+
+#     def update_text(self, media=None):
+#         if media is not None:
+#             duration = media.duration
+#         else:
+#             duration = getattr(self.platform, 'duration', 0.0) or 0.0
+#         minutes = int(duration // 60)
+#         seconds = int(duration % 60)
+#         return f"{minutes:d}:{seconds:02d}"
+
+# class LinearProgress(Frame):
+#     """Linear progress dial with timecode readout."""
+#     @property
+#     def title(self):
+#         return ' Linear Progress pay bar'
+
+#     @property
+#     def type(self):
+#         return 'Test'
+
+#     def __init__(
+#         self,
+#         parent,
+#         config: Optional[FrameConfig] = None,
+#         colour: str = 'mid',
+#         visuals: Optional[TextStyle] = None  # Need a ProgressStyle
+#     ):
+#         resolved_config = config if config is not None else FrameConfig(
+#             theme='hifi',
+#             padding=0,
+#             square=True
+#         )
+#         super().__init__(parent, config=config)
+#         self.colour = colour
+#         self.text_style = visuals if visuals is not None else TextStyle(
+#             colour='mid',
+#             justify=('centre', 'middle')
+#         )
+#         self.configure()
+
+#     def configure(self):
+#         elapsed_str = "22:22"
+#         remaining_str = "22:22"
+
+#         cols = ColFramer(self, ratios=(1,5,1))
+#         cols += TextFrame(cols,
+#             text=elapsed_str,
+#             config=FrameConfig(scalers=(0.7, 0.7), align=('right', 'middle')),visuals=self.text_style,
+#             update_fn=self.update_elapsed
+#         )
+#         cols += ShaderFrame(cols, shader='linprogress', visuals=ShaderStyle(shader_name='linprogress', colour=self.colour))
+#         cols += TextFrame(cols,
+#             text=remaining_str,
+#             config=FrameConfig(scalers=(0.7, 0.7), align=('right', 'middle')),visuals=self.text_style,
+#             update_fn=self.update_remaining
+#         )
+
+#     # def update_screen(self, audio=None, media=None):
+#     #     elapsed_str, remaining_str = self.update_text(media)
+
+#     def update_elapsed(self):
+#         elap = getattr(self.platform, 'elapsed', 0.0) or 0.0
+#         elapsed_str = f"  {int(elap // 60)}:{int(elap % 60):02d}"
+#         return elapsed_str
+
+#     def update_remaining(self):
+#         dur = getattr(self.platform, 'duration', 0.0) or 0.0
+#         elap = getattr(self.platform, 'elapsed', 0.0) or 0.0
+#         remaining_str = f"{int(max(0.0, dur - elap) // 60)}:{int(max(0.0, dur - elap) % 60):02d}  "
+#         return remaining_str
 '''
 Image based meta data frames
 '''

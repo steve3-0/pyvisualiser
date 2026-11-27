@@ -58,7 +58,9 @@ from .core.frame_config import FrameConfig  # Unified layout, hierarchy, and sty
 
 # Visualiser Components
 from .visualisers.vumeters import VUFrame, VUMeter, VU2chFrame, VU2chHorzFrame, VUFlipFrame, VUMeterImageFrame
-from .visualisers.metadata import MetaDataFrame, MetaData, MetaImages, PlayProgressFrame, TextFrame, CircularProgress
+from .visualisers.metadata import MetaDataFrame, MetaData, MetaImages
+from .visualisers.playprogress import PlayProgressFrame, CircularProgress
+from .visualisers.text import TextFrame
 from .visualisers.spectrum import SpectrumFrame, Spectrum, Diamondiser, Octaviser
 from .visualisers.oscillogramme import Oscilogramme, OscilogrammeBar, SamplesFrame
 from .visualisers.advanced_frames import EchoWaveFrame, KaleidoscopeFrame, PulseOrbFrame, SpectrumWaveFrame, FreqWaveFrame

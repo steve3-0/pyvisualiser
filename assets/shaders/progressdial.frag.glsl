@@ -26,6 +26,15 @@ float ring(vec2 uv, float radius, float width) {
     return 1.0-smoothstep(width, width + 0.01, abs(dist));
 }
 
+vec3 colour_correction(vec3 col, float saturation, float power, float vert_shade) {
+    vec3 safe_col = max(col, vec3(0.0));
+    vec3 curved = pow(safe_col, vec3(max(power, 0.0001)));
+
+    float luma = dot(curved, vec3(0.2126, 0.7152, 0.0722));
+    vec3 saturated = max(mix(vec3(luma), curved, saturation), vec3(0.0));
+
+    return saturated * clamp(vert_shade, 0.0, 1.0);
+}
 
 float progressDial(vec2 uv, float radius, float thickness, float progress) {
     
@@ -69,9 +78,11 @@ void main()
 
     float radius    = 0.90;    // Outer radius of the dial
     float ringWidth = radius * 0.1;
-    vec3  shadowColour   = u_colour*0.2;  
-    vec3  backingColour  = u_colour*0.4; 
-    vec3  progressColour = u_colour;
+
+    vec3  baseCol = colour_correction(u_colour, 1.35, 1.0, 1.0);
+    vec3  shadowColour   = baseCol*0.2;  
+    vec3  backingColour  = baseCol*0.4; 
+    vec3  progressColour = baseCol;
  
     float dialPattern = progressDial(uv, radius, ringWidth, progress);
     float backPattern = progressDial(uv, radius, ringWidth, 1.0);

@@ -452,7 +452,7 @@ class Geometry():
         return( "name %s, abcd %s, bounds %s, boundswh %s, size %s, coords %s" % (type(self).__name__, self.abcd, self._bounds, self.boundswh, self.wh, self.coords))
 
     def geostr(self, s=0):
-        return( "name %s, outline_w %d, abcd %s, bounds %s, boundswh %s, size %s, coords %s, abs org %s, offset %s\n         abs rect %s, abs outline %s, abs_perimeter %s, abs_background %s, abs_centre %s, wh %s, padding %s" \
+        return( "\\nname %s, outline_w %d, abcd %s, bounds %s, boundswh %s, size %s, coords %s, abs org %s, offset %s '\n'         abs rect %s, abs outline %s, abs_perimeter %s, abs_background %s, abs_centre %s, wh %s, padding %s" \
             % (type(self).__name__, self.outline_w, self.abcd, self._bounds, self.boundswh, self.wh, self.coords, self.abs_origin(), self.align_offset, self.abs_rect(), self.abs_outline(),self.abs_perimeter(), self.abs_background(), self.abs_centre(), self.wh, self.padding))
 
     # alignment offset is the % of the parent wh to offset
@@ -589,20 +589,40 @@ class Frame(Geometry):
     # to dynamically change the geometry:
     # 1. scale and realign the current frame
     # 2. update the geometry of the children frames recusively (the scaling & alignment remains, its the change in parent bounds that causes the update)
+    # def update_geometry(self, bounds, scalers=None, align=None, offset=None):
+    #     # print("Frame.update_geometry> ", bounds, scalers, align, offset, self.framestr())
+    #     self.change_bounds(bounds)
+    #     self.scale(scalers)
+    #     self.align(align, offset)
+    #     if hasattr(self, 'configure'): self.configure()
+
+    #     for f in self.frames:
+    #         # print("Frame.update_geometry> child from ", f.bounds, "to new parent", f.abs_coords(), f.scalers, f.align_offset,"has config", hasattr(f, 'configure'), f.framestr())
+    #         f.update_geometry(self.canvas_coords())
+    #         if hasattr(f, 'configure'): 
+    #             # self.background_frame         = self.platform.create_background(self,self.background)
+    #             f.configure()
+
     def update_geometry(self, bounds, scalers=None, align=None, offset=None):
-        # print("Frame.update_geometry> ", bounds, scalers, align, offset, self.framestr())
-        self.change_bounds(bounds)
-        self.scale(scalers)
-        self.align(align, offset)
-        if hasattr(self, 'configure'): self.configure()
+        try:
+            self.change_bounds(bounds)
+            self.scale(scalers)
+            self.align(align, offset)
 
-        for f in self.frames:
-            # print("Frame.update_geometry> child from ", f.bounds, "to new parent", f.abs_coords(), f.scalers, f.align_offset,"has config", hasattr(f, 'configure'), f.framestr())
-            f.update_geometry(self.canvas_coords())
-            if hasattr(f, 'configure'): 
-                # self.background_frame         = self.platform.create_background(self,self.background)
-                f.configure()
+            # Snapshot existing children before rebuilding `self.frames`
+            existing_children = list(self.frames)
 
+            if hasattr(self, "configure"):
+                self.frames.clear()
+                self.configure()
+
+            # Propagate new canvas bounds to children (`f.update_geometry` calls `f.configure()`)
+            for f in existing_children:
+                f.update_geometry(self.canvas_coords())
+
+        except Exception as e:
+            print(f"Error updating geometry in {type(self).__name__}: {e}")
+            print(self.__str__)
 
     # update the screen with the frame contents
     # whether the background and outline is drawn depends on whether the frame update is per frame or per metadata change

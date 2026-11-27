@@ -199,9 +199,10 @@ class SpectrumStyle:
 
 @dataclass(frozen=True)
 class PlayProgressStyle:
-    barsize_pc: float = 0.9
-    bar_style: BarStyle = field(default_factory=lambda: BarStyle(led_gap=0, radius=30))
-    text_style: TextStyle = field(default_factory=TextStyle)
+    format: str = "auto" # "linear_under", "linear_under", "circular", "auto"
+    radius: int = 30 # rounded end type or - for straight
+    text_style: TextStyle = field(default_factory=TextStyle) # formatting applied to the text represented
+    colour: str = 'mid' 
 
 
 @dataclass(frozen=True)

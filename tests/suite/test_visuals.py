@@ -322,8 +322,7 @@ class APICoverageScreen(Frame):
         r1 += TextFrame(r1, text="TextFrame\nWrapped & Centred", config=FrameConfig(background=BackgroundStyle(colour='mid'), outline=OutlineStyle(colour='light', width=1, radius=5)), visuals=TextStyle(wrap=True, justify=('centre', 'middle'), colour='alert'))
         r1 += MetaImages(r1, key=MetadataKey.ALBUM, config=FrameConfig(outline=OutlineStyle(colour='foreground', width=2)), visuals=ImageStyle(opacity=0.86, reflection=ReflectionStyle(size=0.4, opacity=0.6)))
         r1 += MetaData(r1, key=MetadataKey.ARTIST, config=FrameConfig(background=BackgroundStyle(colour='dark', colour_opacity=0.6), outline=OutlineStyle(width=0)), visuals=TextStyle(colour='light', justify=('left', 'top')))
-        r1 += PlayProgressFrame(r1, config=FrameConfig(background=BackgroundStyle(colour='mid', colour_opacity=0.4)), 
-                                visuals=PlayProgressStyle(bar_style=BarStyle(led_h=4, led_gap=1), barsize_pc=0.4))
+        r1 += PlayProgressFrame(r1, config=FrameConfig(background=BackgroundStyle(colour='mid', colour_opacity=0.4)))
 
         # --- ROW 2: Audio Visualisers (Bars & Spectrums) ---
         r2 = rows.add_cols(ratios=(1, 1, 1), config=FrameConfig(padding=10))

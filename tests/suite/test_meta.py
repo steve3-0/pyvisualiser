@@ -3,7 +3,7 @@ from pyvisualiser.core.components import Bar
 from pyvisualiser import *
 from pyvisualiser.styles.presets import *
 from pyvisualiser.visualisers.vumeters import *
-from pyvisualiser.visualisers.metadata import *
+from pyvisualiser.visualisers.playprogress import *
 from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.visualisers.oscillogramme import *
 
@@ -33,31 +33,6 @@ class MetaMiniSpectrumFrame(Frame):
 
 
 
-
-
-class ProgressScreen(Frame):
-
-    @property
-    def title(self):
-        return 'Progress> checks the API for PlayProgressFrame'
-
-    @property
-    def type(self):
-        return 'Test'
-
-    def __init__(self, platform):
-        back = BackgroundStyle(colour= 'mid', colour_opacity=1.0)
-        super().__init__(platform, config=FrameConfig(theme='hifi',  outline=OutlineStyle(width= 2, colour= 'alert'), padding=10))
-
-        rows = RowFramer(self, row_ratios=(1, 1), padpc=0.1, config=FrameConfig(background= BackgroundStyle(colour='mid'), padding=0, outline=OutlineStyle(colour= 'alert', width=1)))
-        
-        cols = ColFramer(rows, padpc=0.1,)
-        cols += PlayProgressFrame(cols, config=FrameConfig(scalers=(1.0, 0.2), background=back), 
-                                  visuals=PlayProgressStyle(bar_style=BarStyle(led_h=6, led_gap=3)))
-        cols += PlayProgressFrame(cols, visuals=PlayProgressStyle(bar_style=BarStyle(radius=10, led_h=3, led_gap=3)))
-
-        rows += PlayProgressFrame(rows, visuals=PlayProgressStyle(bar_style=BarStyle(radius=30, led_h=3, led_gap=3,orient='horz')))
-
 class CircProgressScreen(Frame):
     @property
     def title(self): return 'Circular Playprogress bar'
@@ -70,7 +45,41 @@ class CircProgressScreen(Frame):
         # Use the new 'meter2' theme which has the cream background
         super().__init__(platform, config=FrameConfig(theme='ocean', padding=0))
 
-        cols = ColFramer(self, padpc=0.1)
-        cols += CircularProgress(cols,colour='foreground')
-        cols += CircularProgress(cols,colour='mid')
-        cols += CircularProgress(cols,colour='alert')
+        cols = ColFramer(self, ratios=(6,3,1), padpc=0.1)
+        cols += PlayProgressFrame(cols, visuals=PlayProgressStyle(radius=30, format="auto", colour='foreground'))
+        row = RowFramer(cols, ratios=(5,1))
+        row += PlayProgressFrame(row, visuals=PlayProgressStyle(radius=30, format="auto", colour='mid'))
+        row += PlayProgressFrame(row, visuals=PlayProgressStyle(radius=30, format="auto", colour='mid'))
+
+        cols += PlayProgressFrame(cols, visuals=PlayProgressStyle(radius=30, format="auto", colour='alert'))
+
+
+class ProgressScreenTest(Frame):
+
+    @property
+    def title(self):
+        return 'Progress> checks the API for PlayProgressFrame'
+
+    @property
+    def type(self):
+        return 'Test'
+
+    def __init__(self, platform):
+        back = BackgroundStyle(colour= 'dark', colour_opacity=1.0)
+        super().__init__(platform, config=FrameConfig(theme='std',  outline=OutlineStyle(width= 2, colour= 'alert'), padding=1))
+
+        config=FrameConfig(outline=OutlineStyle(width= 1, colour= 'alert'), padding=1)
+
+        rows = RowFramer(self, row_ratios=(1, 3), padpc=0.1 )
+        rows += PlayProgressFrame(rows, visuals=PlayProgressStyle(radius=0, format="linear_ends"),config=config )
+
+        cols = ColFramer(rows, ratios=(3,1), padpc=0.1)
+
+        col1 = RowFramer(cols, ratios=(3,2,1))
+        col1 += PlayProgressFrame(col1, visuals=PlayProgressStyle(radius=30, format="auto"),config=config)
+        col1 += PlayProgressFrame(col1, visuals=PlayProgressStyle(radius=30, format="auto"),config=config)
+        col1 += PlayProgressFrame(col1, visuals=PlayProgressStyle(radius=30, format="auto"),config=config)
+
+
+
+        cols += PlayProgressFrame(cols, visuals=PlayProgressStyle(radius=30, format="circular"),config=config)

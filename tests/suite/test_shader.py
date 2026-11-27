@@ -10,7 +10,7 @@ from pyvisualiser.visualisers.glvisualisers import *
 from pyvisualiser.styles.presets import *
 from pyvisualiser.styles.styles  import *
 from pyvisualiser.core.framecore  import Frame, RowFramer, ColFramer
-from pyvisualiser.visualisers.metadata import CircularProgress, MetaDataFrame, PlayProgressFrame, TextFrame, MetaImages, MetaData
+# from pyvisualiser.visualisers.metadata import CircularProgress, LinearProgress, MetaDataFrame, PlayProgressFrame, TextFrame, MetaImages, MetaData
 from pyvisualiser.visualisers.spectrum import *
 from pyvisualiser.core.frame_config import *
 
@@ -101,7 +101,7 @@ class GLTestScreen3(Frame):
         for shader in SHADERS3:
             col += ShaderFrame(col, shader=shader)
 
-        col+= CircularProgress(col)
+        # col+= CircularProgress(col)
 
 
 class GLTestScreen4(Frame):
@@ -114,5 +114,14 @@ class GLTestScreen4(Frame):
 
     def __init__(self, platform):
         # Use the new 'meter2' theme which has the cream background
-        super().__init__(platform, config=FrameConfig( theme='hifi', padding=0))
+        super().__init__(platform, config=FrameConfig( theme='ocean', padding=10,))
+        # x = ColFramer(self)
+        # x += CircularProgress(x)
+        col = RowFramer(self)
+        col += ShaderFrame(col, visuals=ShaderStyle(shader_name='linprogress', colour='mid'), config=FrameConfig(outline=OutlineStyle(colour='mid',width=10)))
+        col += ShaderFrame(col, visuals=ShaderStyle(shader_name='linprogress', colour='light'), config=FrameConfig(outline=OutlineStyle(colour='light',width=10)))
+        col += ShaderFrame(col, visuals=ShaderStyle(shader_name='linprogress', colour='alert'), config=FrameConfig(outline=OutlineStyle(colour='alert',width=10)))
 
+        # col += LinearProgress(col, config=FrameConfig(outline=OutlineStyle(colour='mid',width=10)))
+        # col += LinearProgress(col, config=FrameConfig(outline=OutlineStyle(colour='mid',width=10)))
+        # col += LinearProgress(col, config=FrameConfig(outline=OutlineStyle(colour='mid',width=10)))

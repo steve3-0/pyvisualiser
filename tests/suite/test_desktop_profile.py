@@ -59,7 +59,7 @@ class DesktopNexusScreen(Frame):
         # Center Column: 3D Liquid Orb Shader
         center_stack = cols.add_rows(ratios=(5, 1), padpc=0.02)
         center_stack += ShaderFrame(center_stack, visuals=ShaderStyle(shader_name='liquidorb', colour='mid'))
-        center_stack += PlayProgressFrame(center_stack, visuals=PlayProgressStyle(barsize_pc=0.25,bar_style=BarStyle( led_gap=0)))
+        center_stack += PlayProgressFrame(center_stack)
 
         # Right Column: Stereo Spectrum Analyzer
         right_stack = cols.add_rows(ratios=(1, 1), padpc=0.05, config=FrameConfig(padding=10))
@@ -95,7 +95,7 @@ class AuraCanvasScreen(Frame):
         
         right_stack += MetaDataFrame(right_stack, justify='left', config=FrameConfig(background=None))
         right_stack += Oscilogramme(right_stack, channel=Channel.MONO, config=FrameConfig(background=WidgetBg, outline=WidgetOutline, padding=10))
-        right_stack += PlayProgressFrame(right_stack, visuals=PlayProgressStyle(barsize_pc=0.35, bar_style=BarStyle(led_gap=0)))
+        right_stack += PlayProgressFrame(right_stack)
 
 
 class StellarPulseScreen(Frame):
@@ -146,4 +146,4 @@ class StellarPulseScreen(Frame):
             bar_style=BarStyle(led_gap=2, peak_h=2, radius=1, tip=True)
         )
         bottom_stack += SpectrumFrame(bottom_stack, channel=Channel.MONO, visuals=spec_style, config=FrameConfig(background=WidgetBg, outline=WidgetOutline))
-        bottom_stack += PlayProgressFrame(bottom_stack, visuals=PlayProgressStyle(bar_style=BarStyle(),barsize_pc=0.3))
+        bottom_stack += PlayProgressFrame(bottom_stack)
